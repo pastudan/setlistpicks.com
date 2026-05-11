@@ -150,7 +150,7 @@ export default function ScheduleGrid({
           textDecoration: 'none',
           fontWeight: 600,
         }}>
-          Made with ❤️ in San Francisco
+          Made with ♥ in San Francisco
         </a>
       </footer>
     </div>
