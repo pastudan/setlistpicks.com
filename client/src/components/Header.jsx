@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
-import { setIdentity, clearIdentity } from '../storage.js';
+import { setIdentity, clearIdentity, setActiveGroup } from '../storage.js';
 import { toast } from '../toast.js';
 
 function initials(name) {
@@ -59,6 +59,23 @@ export default function Header({
     const newName  = nameInput.trim()  || memberDisplayName;
     const prevGroup = groupName;
     const prevName  = memberDisplayName;
+
+    // If the typed name collides with an existing member, recover their session.
+    const collision = mutedMembers.find(
+      (m) => m.displayName.trim().toLowerCase() === newName.trim().toLowerCase() && m.key !== member.key
+    );
+    if (collision) {
+      try {
+        const { member: recovered } = await api.join(groupId, newName);
+        setIdentity(groupId, recovered);
+        setActiveGroup(groupId);
+        await api.removeMember(groupId, member.key, { keepVotes: false }).catch(() => {});
+        location.reload();
+      } catch (e) {
+        toast(`Couldn\u2019t recover account: ${e.message}`);
+      }
+      return;
+    }
 
     setGroupName(newGroup);
     setMemberDisplayName(newName);
@@ -209,19 +226,21 @@ export default function Header({
             return editMatch ? (
               <div style={{
                 fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.4,
-                background: 'rgba(180, 140, 0, 0.08)',
-                border: '1px solid rgba(180, 140, 0, 0.35)',
-                borderRadius: '4px', padding: '8px 12px', color: '#6b4f00',
+                background: 'rgba(36,103,177,0.08)',
+                border: '1px solid rgba(36,103,177,0.2)',
+                borderRadius: '4px', padding: '8px 12px', color: 'var(--ink)',
               }}>
-                <strong>{editMatch.displayName}</strong> is already in this group.
-                Saving only updates your display name &mdash; it won&rsquo;t give you their picks.
-                To recover their account on this device, cancel and rejoin with that name instead.
+                <strong>{editMatch.displayName}</strong> is already in this group &mdash; saving
+                will recover their picks on this device and drop your current ones.
               </div>
             ) : null;
           })()}
           {membersSection}
           <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
-            <button className="btn" onClick={save}>Save</button>
+            <button className="btn" onClick={save}>{
+              mutedMembers.find(m => m.displayName.trim().toLowerCase() === nameInput.trim().toLowerCase() && m.key !== member.key)
+                ? 'Recover Account' : 'Save'
+            }</button>
             <button className="btn ghost" onClick={closeEdit}>Cancel</button>
             {removingKey !== member.key && (
               <button className="btn leave" style={{ marginLeft: 'auto' }}

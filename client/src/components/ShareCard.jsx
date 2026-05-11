@@ -29,7 +29,7 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
         <div onClick={copy} style={{
           flex: 1, fontSize: '0.82rem', fontFamily: 'inherit',
           padding: '12px 10px', display: 'flex', alignItems: 'center',
-          background: 'var(--paper)', border: '1px solid var(--rule)',
+          background: 'var(--paper)', border: '1px solid rgba(36,103,177,0.35)',
           cursor: 'pointer', userSelect: 'none',
           overflow: 'hidden', whiteSpace: 'nowrap', color: 'var(--ink)',
         }}>
