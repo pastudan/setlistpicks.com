@@ -202,6 +202,23 @@ export default function Header({
             style={{ fontSize: '0.88rem', padding: '6px 10px' }}
             onChange={(e) => setNameInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && save()} />
+          {(() => {
+            const editMatch = mutedMembers.find(m =>
+              m.key === nameInput.trim().toLowerCase() && m.key !== member.key
+            );
+            return editMatch ? (
+              <div style={{
+                fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.4,
+                background: 'rgba(180, 140, 0, 0.08)',
+                border: '1px solid rgba(180, 140, 0, 0.35)',
+                borderRadius: '4px', padding: '8px 12px', color: '#6b4f00',
+              }}>
+                <strong>{editMatch.displayName}</strong> is already in this group.
+                Saving only updates your display name &mdash; it won&rsquo;t give you their picks.
+                To recover their account on this device, cancel and rejoin with that name instead.
+              </div>
+            ) : null;
+          })()}
           {membersSection}
           <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
             <button className="btn" onClick={save}>Save</button>

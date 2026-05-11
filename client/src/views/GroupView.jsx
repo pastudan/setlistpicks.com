@@ -167,6 +167,7 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
           member={member}
           memberDisplayName={memberDisplayName}
           groupName={isJoiner ? groupName : null}
+          mutedMembers={mutedMembers}
           onDismiss={handleNameDismiss}
         />
       )}

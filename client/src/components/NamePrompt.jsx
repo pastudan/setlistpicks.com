@@ -2,24 +2,38 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../api.js';
 import { setIdentity } from '../storage.js';
 
-export default function NamePrompt({ groupId, member, memberDisplayName, groupName, onDismiss }) {
+const normalize = (s) => String(s || '').trim().toLowerCase();
+
+export default function NamePrompt({ groupId, member, memberDisplayName, groupName, mutedMembers = [], onDismiss }) {
   const autoName = memberDisplayName;
   const [name, setName] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  const trimmed = name.trim();
+  const existingMatch = trimmed ? mutedMembers.find(m => m.key === normalize(trimmed)) : null;
+  const isSelf = existingMatch?.key === member.key;
+  const isRecovery = existingMatch && !isSelf;
+
   async function dismiss(chosenName) {
-    if (chosenName && chosenName !== autoName) {
+    const t = chosenName?.trim();
+    if (!t || t === autoName) { onDismiss(null); return; }
+
+    if (mutedMembers.find(m => m.key === normalize(t) && m.key !== member.key)) {
+      // Recover existing session — api.join returns the real member key + preserved votes
       try {
-        await api.updateMember(groupId, member.key, chosenName);
-        setIdentity(groupId, { ...member, displayName: chosenName });
-        onDismiss(chosenName);
-      } catch {
-        onDismiss(autoName);
-      }
+        const { member: recovered } = await api.join(groupId, t);
+        setIdentity(groupId, recovered);
+        onDismiss(recovered.displayName);
+      } catch { onDismiss(autoName); }
     } else {
-      onDismiss(null);
+      // New name — just rename the auto-generated placeholder user
+      try {
+        await api.updateMember(groupId, member.key, t);
+        setIdentity(groupId, { ...member, displayName: t });
+        onDismiss(t);
+      } catch { onDismiss(autoName); }
     }
   }
 
@@ -37,8 +51,10 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
           <li>Share a link with your crew</li>
           <li>See what the group decides on</li>
         </ul>
-        {/* <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '4px 0 10px' }} /> */}
-        {/* {groupName && (
+
+        <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '10px 0 8px' }} />
+
+        {groupName && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--ink-soft)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Joining Group
@@ -56,9 +72,9 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
               {groupName}
             </span>
           </div>
-        )} */}
-        <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '10px 0 8px' }} />
-        <div style={{ fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        )}
+
+        <div style={{ fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: groupName ? 12 : 0 }}>
           What&rsquo;s your name?
         </div>
         <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--ink-soft)' }}>
@@ -74,7 +90,29 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           style={{ fontSize: '1rem' }}
         />
-        <button className="btn" onClick={submit}>Let&rsquo;s go</button>
+
+        {/* Per-keystroke collision hint */}
+        {isRecovery && (
+          <div style={{
+            fontSize: '0.82rem', fontWeight: 600,
+            color: 'var(--ink)', lineHeight: 1.4,
+            background: 'rgba(36,103,177,0.08)',
+            border: '1px solid rgba(36,103,177,0.2)',
+            borderRadius: '4px', padding: '8px 12px',
+          }}>
+            <strong>{existingMatch.displayName}</strong> is already in this group
+            &mdash; you&rsquo;ll recover their picks on this device.
+          </div>
+        )}
+        {isSelf && trimmed && (
+          <div style={{ fontSize: '0.82rem', color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+            That&rsquo;s your current name.
+          </div>
+        )}
+
+        <button className="btn" onClick={submit}>
+          {isRecovery ? `Rejoin as ${existingMatch.displayName}` : "Let\u2019s go"}
+        </button>
         <div style={{ textAlign: 'center' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink-soft)' }}>
             <button onClick={() => dismiss(null)} style={{
