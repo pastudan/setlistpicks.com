@@ -73,7 +73,7 @@ const sets = {
     ['prudential', '13:30', '14:15', 'The Return of Jackie & Judy'],
     ['prudential', '14:45', '15:45', 'Joan Jett & the Blackhearts'],
     ['prudential', '16:15', '17:15', 'AJR'],
-    ['prudential', '17:45', '19:15', 'LCD Soundsystem'],
+    ['prudential', '17:45', '19:00', 'LCD Soundsystem'],
     ['prudential', '19:45', '21:45', 'Foo Fighters'],        // 120 min headliner
 
     // ── T-Mobile Stage ───────────────────────────────────────────────
@@ -81,8 +81,8 @@ const sets = {
     ['tmobile', '14:15', '15:15', 'Flipturn'],
     ['tmobile', '15:45', '16:45', 'Bush'],
     ['tmobile', '17:15', '18:15', 'Busta Rhymes'],
-    ['tmobile', '18:45', '20:00', 'Rilo Kiley'],
-    ['tmobile', '20:30', '21:45', 'Zedd'],                   // 75 min closer
+    ['tmobile', '18:45', '19:45', 'Rilo Kiley'],
+    ['tmobile', '20:30', '22:00', 'Zedd'],                   // 90 min closer
 
     // ── HelloFresh Stage ─────────────────────────────────────────────
     ['hellofresh', '12:00', '12:45', 'Bettina Maureenji'],
@@ -109,7 +109,7 @@ const sets = {
     ['prudential', '13:30', '14:30', 'Larkin Poe'],
     ['prudential', '15:00', '16:00', 'Kool & the Gang'],
     ['prudential', '16:30', '17:45', 'Mt. Joy'],
-    ['prudential', '18:15', '19:30', 'Sombr'],
+    ['prudential', '18:15', '19:15', 'Sombr'],
     ['prudential', '20:00', '21:45', 'Backstreet Boys'],     // 105 min headliner
 
     // ── T-Mobile Stage ───────────────────────────────────────────────
@@ -128,7 +128,7 @@ const sets = {
     ['hellofresh', '16:00', '17:00', 'Paco Versailles'],
     ['hellofresh', '17:30', '18:30', 'Good Neighbours'],
     ['hellofresh', '19:00', '20:00', 'The California Honeydrops'],
-    ['hellofresh', '20:30', '22:00', 'Cut Copy'],            // 90 min closer
+    ['hellofresh', '20:30', '21:45', 'Cut Copy'],            // 75 min closer
 
     // ── NorthBay Health Stage ────────────────────────────────────────
     ['northbay', '12:00', '12:45', 'Alec Shaw'],
