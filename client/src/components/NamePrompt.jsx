@@ -134,7 +134,7 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
               fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit',
               textDecoration: 'underline', textDecorationStyle: 'solid', textUnderlineOffset: '2px',
             }}>Skip</button>
-            {' \u2014 use \u201c'}{autoName}{'\u201d'}
+            {' \u2014 use a random name'}
           </span>
         </div>
       </div>

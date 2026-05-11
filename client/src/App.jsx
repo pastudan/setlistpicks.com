@@ -84,8 +84,9 @@ export default function App() {
       setActiveGroup(groupId);
       setGroupState({ groupId, member: identity, groupMeta, freshJoin });
     } catch (e) {
-      if (e.status === 404) { clearActiveGroup(); setError('That group link looks expired or invalid.'); }
-      else setError(e.message);
+      if (e.status === 404) { clearActiveGroup(); setError({ msg: 'That group link looks expired or invalid.', canRetry: true }); }
+      else if (e.status === 429) setError({ msg: 'Too many groups or users created from this network. Try again later.', canRetry: false });
+      else setError({ msg: e.message, canRetry: true });
     } finally {
       setLoading(false);
       navigating.current = false;
@@ -112,7 +113,8 @@ export default function App() {
         navigate(`/${group.id}`, { replace: true });
       } catch (e) {
         navigating.current = false;
-        setError(e.message);
+        if (e.status === 429) setError({ msg: 'Too many groups created from this network. Try again later.', canRetry: false });
+        else setError({ msg: e.message, canRetry: true });
       }
     })();
   }, [path, navigate]);
@@ -129,31 +131,31 @@ export default function App() {
   // Render
   const m = path.match(GROUP_ID_RE);
 
-  if (loading || (path === '/' || path === '')) {
-    return (
-      <div className="app">
-        <div className="brand">
-          <div className="brand-logo">BottleRock</div>
-          <div><div className="brand-title">Setlist Picks</div></div>
-        </div>
-        <div className="card center" style={{ padding: '40px 20px', color: 'var(--ink-soft)', fontSize: '0.9rem' }}>
-          Setting up your crew…
-        </div>
+  const shell = (children) => (
+    <div className="app">
+      <div className="brand">
+        <div className="brand-logo">BottleRock</div>
+        <div><div className="brand-title">Setlist Picks</div></div>
+      </div>
+      {children}
+    </div>
+  );
+
+  if (error) {
+    return shell(
+      <div className="card stack">
+        <p style={{ margin: 0 }}>{error.msg}</p>
+        {error.canRetry && (
+          <button className="btn" onClick={() => { clearActiveGroup(); setError(null); navigate('/'); }}>Start over</button>
+        )}
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="app">
-        <div className="brand">
-          <div className="brand-logo">BottleRock</div>
-          <div><div className="brand-title">Setlist Picks</div></div>
-        </div>
-        <div className="card stack">
-          <p style={{ margin: 0 }}>{error}</p>
-          <button className="btn" onClick={() => { clearActiveGroup(); setError(null); navigate('/'); }}>Start over</button>
-        </div>
+  if (loading || (path === '/' || path === '')) {
+    return shell(
+      <div className="card center" style={{ padding: '40px 20px', color: 'var(--ink-soft)', fontSize: '0.9rem' }}>
+        Setting up your crew…
       </div>
     );
   }
