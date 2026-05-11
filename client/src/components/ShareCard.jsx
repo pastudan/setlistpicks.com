@@ -49,7 +49,7 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
       </div>
       {mutedMembers.length > 0 && (
         <div style={{ fontSize: '0.88rem', lineHeight: 1.6, display: 'flex', flexWrap: 'wrap', gap: '8px 12px' }}>
-          {mutedMembers.map((m) => (
+          {mutedMembers.filter((m) => memberVoteCounts[m.key] > 0 || m.key === memberKey).map((m) => (
             <span key={m.key} style={{ display: 'inline-flex', alignItems: 'center' }}>
               <button style={linkStyle} onClick={() => onMemberClick?.(m)}>
                 {m.displayName}

@@ -1,9 +1,23 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { renderLineupHtml, renderJsonLd } from './seo-prerender.js';
+
+function seoPrerender() {
+  return {
+    name: 'seo-prerender',
+    transformIndexHtml(html) {
+      const lineupHtml = renderLineupHtml();
+      const jsonLd = renderJsonLd();
+      return html
+        .replace('<div id="app"></div>', `<div id="app"></div>\n${lineupHtml}`)
+        .replace('</head>', `${jsonLd}\n  </head>`);
+    },
+  };
+}
 
 export default defineConfig({
   root: 'client',
-  plugins: [react()],
+  plugins: [react(), seoPrerender()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,

@@ -156,10 +156,30 @@ app.post('/api/groups/:groupId/votes/:memberKey', (req, res) => {
 
 // ─── Static / SPA ─────────────────────────────────────────────────────────────
 const distDir = path.join(ROOT, 'dist');
+
+// Nanoid alphabet used for group IDs (10 chars from this set).
+const GROUP_PATH_RE = /^\/[23456789abcdefghjkmnpqrstuvwxyz]{10}\/?$/;
+
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
-  app.get(/^(?!\/api\/|\/healthz).*/, (_req, res) => {
-    res.sendFile(path.join(distDir, 'index.html'));
+
+  // Build two cached HTML variants from the single dist/index.html:
+  //   homepageHtml — served for `/`, fully indexable
+  //   groupHtml    — served for group routes, noindex so they don't dilute `/`
+  const indexHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
+  const groupHtml = indexHtml
+    .replace(
+      /<title>[^<]*<\/title>/,
+      '<title>BottleRock Setlist Picker</title>',
+    )
+    .replace(
+      '</head>',
+      '  <meta name="robots" content="noindex, follow" />\n  </head>',
+    );
+
+  app.get(/^(?!\/api\/|\/healthz).*/, (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(GROUP_PATH_RE.test(req.path) ? groupHtml : indexHtml);
   });
 } else if (process.env.NODE_ENV === 'production') {
   console.warn('[server] dist/ not found; did you run `npm run build`?');
