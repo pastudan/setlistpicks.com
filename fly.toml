@@ -1,42 +1,39 @@
-# Deploy:
-#   fly launch --no-deploy   # accept existing config
-#   fly volumes create bottlerock_data --size 1 --region sjc
-#   fly deploy
+# fly.toml app configuration file generated for bottlerock-setlist-preferences on 2026-05-11T02:28:46-07:00
 #
-# The SQLite file lives on the persistent volume at /data/bottlerock.db.
-# No Redis or external DB needed.
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "bottlerock-setlist-preferences"
-primary_region = "sjc"
+app = 'bottlerock-setlist-preferences'
+org = 'bottlerock'
+primary_region = 'sjc'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  PORT     = "8080"
-  NODE_ENV = "production"
-  DB_PATH  = "/data/bottlerock.db"
+  DB_PATH = '/data/bottlerock.db'
+  NODE_ENV = 'production'
+  PORT = '8080'
+
+[[mounts]]
+  source = 'bottlerock_data'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
-  force_https   = true
-  # Scale to zero when idle — volume persists data across restarts.
-  auto_stop_machines  = "stop"
+  force_https = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [[http_service.checks]]
-    interval     = "30s"
-    timeout      = "5s"
-    grace_period = "10s"
-    method       = "GET"
-    path         = "/healthz"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/healthz'
 
 [[vm]]
-  cpu_kind  = "shared"
-  cpus      = 1
+  cpu_kind = 'shared'
+  cpus = 1
   memory_mb = 256
-
-[[mounts]]
-  source      = "bottlerock_data"
-  destination = "/data"
