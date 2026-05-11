@@ -243,7 +243,7 @@ function svgMark(symbolId, extraClass) {
   return svg;
 }
 
-export function groupView({ groupId, member, groupMeta, onLeave }) {
+export function groupView({ groupId, member, groupMeta, freshJoin = false, onLeave }) {
   ensureSvgDefs();
 
   let myVotes = {};
@@ -253,6 +253,7 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
   let memberDisplayName = member.displayName;
   let editingHeader = false;
   let removingMember = null;
+  let showNamePrompt = freshJoin;
 
   const root = h('div.app');
   const toolbar = h('div.toolbar');
@@ -384,28 +385,39 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
         style: { fontSize: '0.88rem', padding: '6px 10px', width: '100%' },
         placeholder: 'Your name',
       });
-      const saveBtn = h('button.btn.small', {
+      const saveBtn = h('button.btn', {
         onClick: async () => {
-          const newGroup = groupInput.value.trim();
-          const newName = nameInput.value.trim();
-          if (!newGroup || !newName) return;
-          editingHeader = false;
-          removingMember = null;
+          const newGroup = groupInput.value.trim() || groupName;
+          const newName  = nameInput.value.trim()  || memberDisplayName;
+
+          // Stash previous values for rollback
+          const prevGroup = groupName;
+          const prevName  = memberDisplayName;
+
+          // Optimistic update — render immediately with new values
+          groupName          = newGroup;
+          memberDisplayName  = newName;
+          editingHeader      = false;
+          removingMember     = null;
+          setIdentity(groupId, { ...member, displayName: newName });
+          render();
+
           try {
             await Promise.all([
-              newGroup !== groupName ? api.updateGroup(groupId, newGroup) : Promise.resolve(),
-              newName !== memberDisplayName ? api.updateMember(groupId, member.key, newName) : Promise.resolve(),
+              newGroup !== prevGroup ? api.updateGroup(groupId, newGroup) : Promise.resolve(),
+              newName  !== prevName  ? api.updateMember(groupId, member.key, newName) : Promise.resolve(),
             ]);
-            groupName = newGroup;
-            memberDisplayName = newName;
-            setIdentity(groupId, { ...member, displayName: newName });
           } catch (e) {
+            // Revert on failure
+            groupName         = prevGroup;
+            memberDisplayName = prevName;
+            setIdentity(groupId, { ...member, displayName: prevName });
             toast(`Couldn\u2019t save: ${e.message}`);
+            render();
           }
-          render();
         },
       }, 'Save');
-      const cancelBtn = h('button.btn.ghost.small', {
+      const cancelBtn = h('button.btn.ghost', {
         onClick: () => { editingHeader = false; removingMember = null; render(); },
       }, 'Cancel');
 
@@ -427,8 +439,8 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
             h('button', {
               style: {
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                fontSize: '0.72rem', fontWeight: 600, color: 'var(--ink-dim)',
-                textDecoration: 'underline', textDecorationStyle: 'dotted',
+                fontSize: 'inherit', fontWeight: 600, color: 'var(--ink-soft)',
+                textDecoration: 'underline', textDecorationStyle: 'solid',
                 textUnderlineOffset: '2px', letterSpacing: '0.03em',
               },
               onClick: () => { editingHeader = false; confirmLeave = false; removingMember = null; render(); },
@@ -439,7 +451,7 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
       ]);
 
       const labelStyle = { fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
-      const smallLinkStyle = { background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.75rem', color: 'var(--ink-soft)', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' };
+      const smallLinkStyle = { background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.75rem', color: 'var(--ink-soft)', textDecoration: 'underline', textDecorationStyle: 'solid', textUnderlineOffset: '2px' };
       const dimLinkStyle = { ...smallLinkStyle, color: 'var(--ink-dim)' };
 
       const memberRows = mutedMembers.map(m => {
@@ -492,7 +504,7 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
           avatarEl,
           nameEl,
           h('button', {
-            style: { background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.72rem', fontWeight: 600, color: 'var(--ink-dim)', flexShrink: 0, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px', letterSpacing: '0.03em' },
+            style: { background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-soft)', flexShrink: 0, textDecoration: 'underline', textDecorationStyle: 'solid', textUnderlineOffset: '2px', letterSpacing: '0.03em' },
             onClick: () => { removingMember = m.key; render(); },
           }, 'remove'),
         ]);
@@ -542,8 +554,8 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
           h('button', {
             style: {
               background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-              fontSize: 'inherit', fontWeight: 600, color: 'var(--ink-dim)',
-              textDecoration: 'underline', textDecorationStyle: 'dotted',
+              fontSize: 'inherit', fontWeight: 600, color: 'var(--ink-soft)',
+              textDecoration: 'underline', textDecorationStyle: 'solid',
               textUnderlineOffset: '2px', letterSpacing: '0.03em',
             },
             onClick: () => { editingHeader = true; render(); },
@@ -573,7 +585,7 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
         }, 1800);
       },
     }, 'Copy invite link');
-    return h('div.card.stack', [
+    return h('div.card.stack.share-card', [
       h('div', { style: { fontWeight: 700, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.06em' } }, 'Invite your crew'),
       h('div.share-row', [input, copy]),
       mutedMembers.length
@@ -630,7 +642,7 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
         fontSize: '0.85rem', color: 'var(--ink-soft)',
         fontWeight: 600, marginLeft: 'auto', whiteSpace: 'nowrap',
       },
-    }, ['Long press \u2192 see who\u2019s in']);
+    }, ['Long press a show \u2192 see who\u2019s in']);
     infoHint.prepend(infoSvg);
 
     return h('div.legend', [
@@ -785,6 +797,63 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
     body.querySelectorAll('[data-day]').forEach((el) => dayObserver.observe(el));
   }
 
+  function renderNamePrompt() {
+    const autoName = memberDisplayName;
+    let nameInput;
+
+    const dismiss = async (chosenName) => {
+      showNamePrompt = false;
+      if (chosenName && chosenName !== autoName) {
+        try {
+          await api.updateMember(groupId, member.key, chosenName);
+          memberDisplayName = chosenName;
+          setIdentity(groupId, { ...member, displayName: chosenName });
+        } catch { /* keep auto name on error */ }
+      }
+      render();
+    };
+
+    nameInput = h('input', {
+      type: 'text',
+      placeholder: autoName,
+      maxlength: 64,
+      autofocus: true,
+      style: { fontSize: '1rem' },
+      onKeydown: (e) => { if (e.key === 'Enter') dismiss(nameInput.value.trim() || autoName); },
+    });
+
+    const goBtn = h('button.btn', {
+      onClick: () => dismiss(nameInput.value.trim() || autoName),
+    }, "Let's go");
+
+    const skipLink = h('span', {
+      style: { fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink-soft)' },
+    }, [
+      h('button', {
+        style: {
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit',
+          textDecoration: 'underline', textDecorationStyle: 'solid',
+          textUnderlineOffset: '2px',
+        },
+        onClick: () => dismiss(null),
+      }, 'Skip'),
+      ` \u2014 use a random name`,
+    ]);
+
+    const card = h('div.name-prompt-card', [
+      h('div', { style: { fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.3rem', color: 'var(--ink-soft)', letterSpacing: '0.01em', lineHeight: 1.2 } }, 'Plan the BottleRock lineup with your crew \u2014 mark your must-sees, see where everyone lands.'),
+      h('div', { style: { borderTop: '1px solid rgba(36,103,177,0.12)', margin: '4px 0' } }),
+      h('div', { style: { fontWeight: 800, fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '0.05em' } }, "What\u2019s your name?"),
+      h('p', { style: { margin: 0, fontSize: '0.88rem', color: 'var(--ink-soft)' } }, 'Your crew will see this next to your picks.'),
+      nameInput,
+      goBtn,
+      h('div', { style: { textAlign: 'center' } }, skipLink),
+    ]);
+
+    return h('div.name-prompt-backdrop', { onClick: (e) => { if (e.target === e.currentTarget) dismiss(null); } }, [card]);
+  }
+
   function render() {
     toolbar.replaceChildren(renderHeader());
     body.replaceChildren(
@@ -792,6 +861,17 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
       renderLegend(),
       ...DAYS.map((day) => renderScheduleGrid(day)),
     );
+
+    // Name prompt modal — rendered into root so it sits above toolbar + body
+    const existing = root.querySelector('.name-prompt-backdrop');
+    if (showNamePrompt && !existing) {
+      root.appendChild(renderNamePrompt());
+    } else if (!showNamePrompt && existing) {
+      existing.remove();
+    }
+
+    // Populate group-vote indicators from cached data without a WS round-trip
+    syncGroupVotesEls();
 
     if (!scrolledToSavedDay) {
       scrolledToSavedDay = true;
@@ -805,10 +885,94 @@ export function groupView({ groupId, member, groupMeta, onLeave }) {
     }
   }
 
+  // ─── WebSocket: live group vote sync ───────────────────────────────────────
+  let ws = null;
+  let wsReconnectTimer = null;
+
+  // Surgically update only the .group-votes child inside each visible show
+  // block. The wash SVG and everything else in the block are untouched — so
+  // a teammate's vote never triggers a brushstroke re-render on your screen.
+  function syncGroupVotesEls() {
+    for (const block of body.querySelectorAll('.show-block[data-id]')) {
+      const artistId = block.dataset.id;
+      const existing = block.querySelector('.group-votes');
+      const fresh = buildGroupVotesEl(artistId);
+
+      if (existing && fresh)  { existing.replaceWith(fresh); }
+      else if (existing)      { existing.remove(); }
+      else if (fresh) {
+        // Insert before the wash SVG so it stays below the highlight overlay
+        const wash = block.querySelector('.wash');
+        wash ? block.insertBefore(fresh, wash) : block.appendChild(fresh);
+      }
+    }
+  }
+
+  function applyGroupUpdate() {
+    // Update group-vote indicators on every visible block (surgical, no DOM rebuild)
+    syncGroupVotesEls();
+
+    // Toolbar: member count
+    toolbar.replaceChildren(renderHeader());
+
+    // Share card member chips (if visible)
+    if (!editingHeader) {
+      const existing = body.querySelector('.share-card');
+      if (existing) existing.replaceWith(renderShare());
+    }
+
+    // Refresh any open long-press popup with the new vote data
+    const backdrop = document.querySelector('.picks-backdrop');
+    if (backdrop) {
+      const artistEl = backdrop.querySelector('.picks-artist');
+      if (artistEl) {
+        const artistName = artistEl.textContent;
+        const found = SCHEDULE.find(x => x.artist === artistName);
+        if (found) { backdrop.remove(); showArtistPopup(found.id, found.artist); }
+      }
+    }
+  }
+
+  function connectWs() {
+    clearTimeout(wsReconnectTimer);
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws?group=${groupId}`);
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'votes') {
+          if (msg.members) mutedMembers = msg.members;
+          if (msg.perArtist) perArtistRaw = msg.perArtist;
+          applyGroupUpdate(); // surgical update — never rebuilds the grid
+        }
+      } catch { /* ignore malformed messages */ }
+    };
+
+    ws.onclose = () => {
+      // Reconnect with backoff — keeps working after Fly machine restarts
+      wsReconnectTimer = setTimeout(connectWs, 3000);
+    };
+
+    ws.onerror = () => ws.close();
+  }
+
+  function disconnectWs() {
+    clearTimeout(wsReconnectTimer);
+    ws?.close();
+    ws = null;
+  }
+
+  // Clean up when the user navigates away or the component is replaced.
+  window.addEventListener('pagehide', disconnectWs, { once: true });
+
   (async () => {
     render();
-    await Promise.all([refreshMyVotes(), refreshGroupVotes()]);
+    // Fetch my votes over HTTP (private — not in the WS broadcast).
+    // Group votes arrive via WS immediately after connection.
+    await refreshMyVotes();
     render();
+    connectWs();
     setupDayObserver();
   })();
 

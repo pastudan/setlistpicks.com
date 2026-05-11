@@ -89,19 +89,21 @@ async function route() {
     }
 
     // Auto-join with a fun random name if no identity yet
+    let freshJoin = false;
     if (!identity) {
       try {
         const { member } = await api.join(groupId, randomMemberName());
         setIdentity(groupId, member);
         identity = member;
         groupMeta = await api.getGroup(groupId);
+        freshJoin = true;
       } catch (e) {
         mount(root, errorCard(e.message, { retry: route }));
         return;
       }
     }
 
-    mount(root, groupView({ groupId, member: identity, groupMeta, onLeave: () => navigate('/') }));
+    mount(root, groupView({ groupId, member: identity, groupMeta, freshJoin, onLeave: () => navigate('/') }));
     return;
   }
 

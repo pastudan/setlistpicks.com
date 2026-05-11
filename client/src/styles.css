@@ -12,7 +12,7 @@
   --bg: rgb(241, 233, 215);
   --paper: #fbf6e9;
   --ink: rgb(36, 103, 177);
-  --ink-soft: rgba(36, 103, 177, 0.65);
+  --ink-soft: rgba(36, 103, 177, 0.75);
   --ink-dim: rgba(36, 103, 177, 0.4);
   --rule: rgba(36, 103, 177, 0.12);
   --btn-primary: rgb(36, 103, 177);
@@ -85,7 +85,7 @@ input[type="text"]::placeholder {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
   padding: 12px 4px 20px;
 }
 .brand-logo {
@@ -518,6 +518,30 @@ input[type="text"]::placeholder {
   font-style: italic;
   color: var(--ink-soft);
   letter-spacing: 0.01em;
+}
+
+/* ─── Name prompt modal ──────────────────────────────────────────── */
+.name-prompt-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(241, 233, 215, 0.82);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+}
+.name-prompt-card {
+  background: var(--paper);
+  border: 1px solid rgba(36, 103, 177, 0.2);
+  border-radius: 4px;
+  padding: 28px 24px;
+  width: min(380px, calc(100vw - 32px));
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 12px 40px rgba(36, 103, 177, 0.12);
 }
 
 /* ─── Toast ──────────────────────────────────────────────────────── */

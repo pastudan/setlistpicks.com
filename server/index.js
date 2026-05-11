@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'node:http';
+import { WebSocketServer } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -12,7 +14,6 @@ import {
   getAllVotes,
   updateGroupName,
   updateMemberDisplayName,
-  removeMember,
 } from './groups.js';
 import { SCHEDULE, STAGES, DAYS } from '../shared/schedule.js';
 
@@ -23,6 +24,53 @@ const PORT = Number(process.env.PORT) || 8080;
 const app = express();
 app.use(express.json({ limit: '32kb' }));
 
+// ─── WebSocket rooms ──────────────────────────────────────────────────────────
+// groupId → Set<WebSocket>. Single-process so no pub/sub needed.
+const rooms = new Map();
+
+function joinRoom(groupId, ws) {
+  if (!rooms.has(groupId)) rooms.set(groupId, new Set());
+  rooms.get(groupId).add(ws);
+}
+
+function leaveRoom(groupId, ws) {
+  const room = rooms.get(groupId);
+  if (!room) return;
+  room.delete(ws);
+  if (room.size === 0) rooms.delete(groupId);
+}
+
+function broadcastVotes(groupId) {
+  const room = rooms.get(groupId);
+  if (!room || room.size === 0) return;
+  const payload = JSON.stringify({ type: 'votes', ...getAllVotes(groupId) });
+  for (const ws of room) {
+    if (ws.readyState === 1 /* OPEN */) ws.send(payload);
+  }
+}
+
+// ─── HTTP + WS server ─────────────────────────────────────────────────────────
+const httpServer = createServer(app);
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+wss.on('connection', (ws, req) => {
+  const url = new URL(req.url, `http://localhost`);
+  const groupId = url.searchParams.get('group');
+  if (!groupId) return ws.close(1008, 'missing group');
+
+  joinRoom(groupId, ws);
+
+  // Send current votes immediately on connect so new joiners are in sync.
+  try {
+    const meta = getGroupMeta(groupId);
+    if (meta) ws.send(JSON.stringify({ type: 'votes', ...getAllVotes(groupId) }));
+  } catch { /* ignore */ }
+
+  ws.on('close', () => leaveRoom(groupId, ws));
+  ws.on('error', () => ws.close());
+});
+
+// ─── API routes ───────────────────────────────────────────────────────────────
 app.get('/healthz', (_req, res) => res.send('ok'));
 
 app.get('/api/schedule', (_req, res) => {
@@ -54,43 +102,40 @@ app.patch('/api/groups/:groupId', (req, res) => {
 app.post('/api/groups/:groupId/join', (req, res) => {
   const result = joinGroup(req.params.groupId, req.body?.displayName);
   if (result.error) return res.status(400).json(result);
+  // Broadcast updated member list to group
+  broadcastVotes(req.params.groupId);
   res.json(result);
 });
 
 app.patch('/api/groups/:groupId/members/:memberKey', (req, res) => {
   const result = updateMemberDisplayName(req.params.groupId, req.params.memberKey, req.body?.displayName);
   if (result.error) return res.status(400).json(result);
-  res.json(result);
-});
-
-app.delete('/api/groups/:groupId/members/:memberKey', (req, res) => {
-  const keepVotes = req.query.keepVotes === '1';
-  const result = removeMember(req.params.groupId, req.params.memberKey, { keepVotes });
-  if (result.error) return res.status(400).json(result);
+  broadcastVotes(req.params.groupId);
   res.json(result);
 });
 
 app.get('/api/groups/:groupId/votes', (req, res) => {
   const meta = getGroupMeta(req.params.groupId);
   if (!meta) return res.status(404).json({ error: 'group_not_found' });
-  const result = getAllVotes(req.params.groupId);
-  res.json(result);
+  res.json(getAllVotes(req.params.groupId));
 });
 
 app.get('/api/groups/:groupId/votes/:memberKey', (req, res) => {
   const meta = getGroupMeta(req.params.groupId);
   if (!meta) return res.status(404).json({ error: 'group_not_found' });
-  const votes = getMyVotes(req.params.groupId, req.params.memberKey);
-  res.json({ votes });
+  res.json({ votes: getMyVotes(req.params.groupId, req.params.memberKey) });
 });
 
 app.post('/api/groups/:groupId/votes/:memberKey', (req, res) => {
   const { artistId, score } = req.body || {};
   const result = setVote(req.params.groupId, req.params.memberKey, artistId, score);
   if (result.error) return res.status(400).json(result);
+  // Push live vote update to everyone in the group
+  broadcastVotes(req.params.groupId);
   res.json(result);
 });
 
+// ─── Static / SPA ─────────────────────────────────────────────────────────────
 const distDir = path.join(ROOT, 'dist');
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
@@ -101,6 +146,6 @@ if (fs.existsSync(distDir)) {
   console.warn('[server] dist/ not found; did you run `npm run build`?');
 }
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
 });
