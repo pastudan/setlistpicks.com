@@ -1,15 +1,8 @@
 import { customAlphabet } from 'nanoid';
-import { redis, touchTTL, GROUP_TTL_SECONDS } from './redis.js';
+import { db } from './db.js';
 import { SCHEDULE_BY_ID } from '../shared/schedule.js';
 
-// URL-friendly, unambiguous alphabet (no 0/O/1/l/I). 10 chars ~ 50 bits.
 const newGroupId = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 10);
-
-const keys = {
-  meta: (g) => `group:${g}:meta`,
-  members: (g) => `group:${g}:members`,
-  votes: (g, member) => `group:${g}:votes:${member}`,
-};
 
 function normalizeName(name) {
   return String(name || '').trim().toLowerCase().slice(0, 64);
@@ -19,112 +12,136 @@ function cleanDisplayName(name) {
   return String(name || '').trim().slice(0, 64);
 }
 
-export async function createGroup({ groupName } = {}) {
+function touch(groupId) {
+  db.prepare('UPDATE groups SET last_active = ? WHERE id = ?').run(Date.now(), groupId);
+}
+
+// Prepared statements — created once, reused on every call (better-sqlite3 caches internally).
+const stmts = {
+  insertGroup:  db.prepare('INSERT INTO groups (id, name, created_at, last_active) VALUES (?, ?, ?, ?)'),
+  getGroup:     db.prepare('SELECT * FROM groups WHERE id = ?'),
+  touchGroup:   db.prepare('UPDATE groups SET last_active = ? WHERE id = ?'),
+  updateGroupName: db.prepare('UPDATE groups SET name = ?, last_active = ? WHERE id = ?'),
+
+  getMember:    db.prepare('SELECT * FROM members WHERE group_id = ? AND member_key = ?'),
+  insertMember: db.prepare('INSERT INTO members (group_id, member_key, display_name, joined_at, last_seen) VALUES (?, ?, ?, ?, ?)'),
+  touchMember:  db.prepare('UPDATE members SET last_seen = ? WHERE group_id = ? AND member_key = ?'),
+  updateMemberName: db.prepare('UPDATE members SET display_name = ?, last_seen = ? WHERE group_id = ? AND member_key = ?'),
+  listMembers:  db.prepare('SELECT member_key, display_name FROM members WHERE group_id = ?'),
+
+  clearVotes:   db.prepare('DELETE FROM votes WHERE group_id = ? AND member_key = ?'),
+  deleteMember: db.prepare('DELETE FROM members WHERE group_id = ? AND member_key = ?'),
+
+  upsertVote:   db.prepare(`
+    INSERT INTO votes (group_id, member_key, artist_id, score) VALUES (?, ?, ?, ?)
+    ON CONFLICT(group_id, member_key, artist_id) DO UPDATE SET score = excluded.score
+  `),
+  deleteVote:   db.prepare('DELETE FROM votes WHERE group_id = ? AND member_key = ? AND artist_id = ?'),
+  getMyVotes:   db.prepare('SELECT artist_id, score FROM votes WHERE group_id = ? AND member_key = ?'),
+  getAllVotes:   db.prepare('SELECT member_key, artist_id, score FROM votes WHERE group_id = ?'),
+};
+
+export function createGroup({ groupName } = {}) {
   const id = newGroupId();
-  const meta = {
-    id,
-    name: cleanDisplayName(groupName) || '',
-    createdAt: Date.now(),
-  };
-  await redis.set(keys.meta(id), JSON.stringify(meta));
-  await touchTTL(keys.meta(id));
-  return meta;
+  const now = Date.now();
+  const name = cleanDisplayName(groupName) || '';
+  stmts.insertGroup.run(id, name, now, now);
+  return { id, name, createdAt: now };
 }
 
-export async function getGroupMeta(groupId) {
-  const raw = await redis.get(keys.meta(groupId));
-  if (!raw) return null;
-  // Refresh TTL on read so active groups stay alive.
-  await touchTTL(keys.meta(groupId), keys.members(groupId));
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+export function getGroupMeta(groupId) {
+  const row = stmts.getGroup.get(groupId);
+  if (!row) return null;
+  stmts.touchGroup.run(Date.now(), groupId);
+  return { id: row.id, name: row.name, createdAt: row.created_at };
 }
 
-export async function joinGroup(groupId, displayName) {
-  const meta = await getGroupMeta(groupId);
-  if (!meta) return { error: 'group_not_found' };
+export function joinGroup(groupId, displayName) {
+  const group = stmts.getGroup.get(groupId);
+  if (!group) return { error: 'group_not_found' };
 
   const display = cleanDisplayName(displayName);
   if (!display) return { error: 'invalid_name' };
   const key = normalizeName(display);
   if (!key) return { error: 'invalid_name' };
 
-  const existing = await redis.hget(keys.members(groupId), key);
+  const now = Date.now();
+  const existing = stmts.getMember.get(groupId, key);
   if (existing) {
-    const parsed = JSON.parse(existing);
-    parsed.lastSeen = Date.now();
-    await redis.hset(keys.members(groupId), key, JSON.stringify(parsed));
-    await touchTTL(keys.members(groupId), keys.votes(groupId, key));
-    return { member: { key, displayName: parsed.displayName } };
+    stmts.touchMember.run(now, groupId, key);
+    return { member: { key, displayName: existing.display_name } };
   }
 
-  const member = { displayName: display, joinedAt: Date.now(), lastSeen: Date.now() };
-  await redis.hset(keys.members(groupId), key, JSON.stringify(member));
-  await touchTTL(keys.members(groupId));
-  return { member: { key, displayName: member.displayName } };
+  stmts.insertMember.run(groupId, key, display, now, now);
+  return { member: { key, displayName: display } };
 }
 
-export async function listMembers(groupId) {
-  const raw = await redis.hgetall(keys.members(groupId));
-  return Object.entries(raw)
-    .map(([key, json]) => {
-      try {
-        const v = JSON.parse(json);
-        return { key, displayName: v.displayName };
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
+export function listMembers(groupId) {
+  return stmts.listMembers.all(groupId).map((r) => ({
+    key: r.member_key,
+    displayName: r.display_name,
+  }));
 }
 
-const VALID_SCORES = new Set([0, 1, 3]); // 0 = clear, 1 = want, 3 = must-see
+const VALID_SCORES = new Set([0, 1, 3]);
 
-export async function setVote(groupId, memberKey, artistId, score) {
+export function setVote(groupId, memberKey, artistId, score) {
   if (!SCHEDULE_BY_ID[artistId]) return { error: 'invalid_artist' };
   const numeric = Number(score);
   if (!VALID_SCORES.has(numeric)) return { error: 'invalid_score' };
 
-  // Ensure the member exists.
-  const memJson = await redis.hget(keys.members(groupId), memberKey);
-  if (!memJson) return { error: 'not_a_member' };
+  const mem = stmts.getMember.get(groupId, memberKey);
+  if (!mem) return { error: 'not_a_member' };
 
-  const k = keys.votes(groupId, memberKey);
   if (numeric === 0) {
-    await redis.hdel(k, artistId);
+    stmts.deleteVote.run(groupId, memberKey, artistId);
   } else {
-    await redis.hset(k, artistId, String(numeric));
+    stmts.upsertVote.run(groupId, memberKey, artistId, numeric);
   }
-  await touchTTL(k, keys.members(groupId), keys.meta(groupId));
+  touch(groupId);
   return { ok: true };
 }
 
-export async function getMyVotes(groupId, memberKey) {
-  const raw = await redis.hgetall(keys.votes(groupId, memberKey));
-  const out = {};
-  for (const [artistId, v] of Object.entries(raw)) out[artistId] = Number(v);
-  return out;
+export function getMyVotes(groupId, memberKey) {
+  const rows = stmts.getMyVotes.all(groupId, memberKey);
+  return Object.fromEntries(rows.map((r) => [r.artist_id, r.score]));
 }
 
-// Return everyone's votes keyed by artistId → array of {displayName, score}.
-export async function getAllVotes(groupId) {
-  const members = await listMembers(groupId);
+export function getAllVotes(groupId) {
+  const members = listMembers(groupId);
+  const memberMap = Object.fromEntries(members.map((m) => [m.key, m]));
+  const rows = stmts.getAllVotes.all(groupId);
   const perArtist = {};
-  await Promise.all(
-    members.map(async (m) => {
-      const votes = await redis.hgetall(keys.votes(groupId, m.key));
-      for (const [artistId, v] of Object.entries(votes)) {
-        const score = Number(v);
-        if (!score) continue;
-        if (!perArtist[artistId]) perArtist[artistId] = [];
-        perArtist[artistId].push({ displayName: m.displayName, score });
-      }
-    }),
-  );
+  for (const row of rows) {
+    const m = memberMap[row.member_key];
+    if (!m) continue;
+    if (!perArtist[row.artist_id]) perArtist[row.artist_id] = [];
+    perArtist[row.artist_id].push({ key: m.key, displayName: m.displayName, score: row.score });
+  }
   return { members, perArtist };
 }
 
-export const _internal = { keys, normalizeName, GROUP_TTL_SECONDS };
+export function updateGroupName(groupId, newName) {
+  const name = cleanDisplayName(newName);
+  if (!name) return { error: 'invalid_name' };
+  const info = stmts.updateGroupName.run(name, Date.now(), groupId);
+  if (!info.changes) return { error: 'group_not_found' };
+  return { name };
+}
+
+export function removeMember(groupId, memberKey, { keepVotes = false } = {}) {
+  const mem = stmts.getMember.get(groupId, memberKey);
+  if (!mem) return { error: 'not_a_member' };
+  if (!keepVotes) stmts.clearVotes.run(groupId, memberKey);
+  stmts.deleteMember.run(groupId, memberKey);
+  touch(groupId);
+  return { ok: true };
+}
+
+export function updateMemberDisplayName(groupId, memberKey, newDisplayName) {
+  const display = cleanDisplayName(newDisplayName);
+  if (!display) return { error: 'invalid_name' };
+  const info = stmts.updateMemberName.run(display, Date.now(), groupId, memberKey);
+  if (!info.changes) return { error: 'not_a_member' };
+  return { member: { key: memberKey, displayName: display } };
+}

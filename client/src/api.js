@@ -23,4 +23,9 @@ export const api = {
   setVote: (id, memberKey, artistId, score) =>
     req('POST', `/api/groups/${id}/votes/${memberKey}`, { artistId, score }),
   allVotes: (id) => req('GET', `/api/groups/${id}/votes`),
+  updateGroup: (id, name) => req('PATCH', `/api/groups/${id}`, { name }),
+  updateMember: (id, memberKey, displayName) =>
+    req('PATCH', `/api/groups/${id}/members/${memberKey}`, { displayName }),
+  leaveGroup: (id, memberKey, { keepVotes = false } = {}) =>
+    req('DELETE', `/api/groups/${id}/members/${memberKey}${keepVotes ? '?keepVotes=1' : ''}`),
 };

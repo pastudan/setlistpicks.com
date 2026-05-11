@@ -40,11 +40,11 @@ export function joinView({ groupId, groupMeta, onJoined }) {
   const memberCount = groupMeta?.members?.length || 0;
   const sub = memberCount
     ? `${memberCount} ${memberCount === 1 ? 'person has' : 'people have'} joined so far`
-    : 'You’re the first one here — invite the crew!';
+      : "You\u2019re the first one here \u2014 invite the crew!";
 
   return h('div.app', [
     h('div.brand', [
-      h('div', { style: { fontSize: '1.8rem' } }, '🎸'),
+      h('div.brand-logo', 'BottleRock'),
       h('div', [
         h('div.brand-title', headline),
         h('div.brand-sub', sub),
@@ -53,8 +53,8 @@ export function joinView({ groupId, groupMeta, onJoined }) {
     h('div.card.stack', [
       h(
         'p',
-        { style: { margin: 0 } },
-        'Set the name your friends know you by. Capitalization doesn’t matter — we’ll dedupe "Dan" and "dan" as the same person.',
+        { style: { margin: 0, color: 'var(--ink-soft)', fontSize: '0.9rem' } },
+        "Set the name your friends know you by. Capitalization doesn\u2019t matter \u2014 \u201cDan\u201d and \u201cdan\u201d are the same person.",
       ),
       input,
       btn,

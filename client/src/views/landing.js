@@ -1,61 +1,58 @@
 import { h } from '../dom.js';
 import { api } from '../api.js';
+import { setIdentity } from '../storage.js';
 
-export function landingView({ onCreated }) {
-  let nameInput;
-  let creating = false;
-  const btn = h(
-    'button.btn',
-    {
-      onClick: async () => {
-        if (creating) return;
-        creating = true;
-        btn.setAttribute('disabled', '');
-        btn.textContent = 'Creating…';
-        try {
-          const groupName = nameInput.value.trim();
-          const group = await api.createGroup(groupName);
-          onCreated(group);
-        } catch (e) {
-          alert(`Could not create group: ${e.message}`);
-          creating = false;
-          btn.removeAttribute('disabled');
-          btn.textContent = 'Create group';
-        }
-      },
-    },
-    'Create group',
-  );
+const GROUP_NAMES = [
+  'Napa Squad', 'The Rosé Riders', 'Vine & Dine Crew', 'Stage Hoppers',
+  'The Barrel Roll', 'Crush Crew', 'Valley Vibes', 'Festival Fam',
+  'The Lineup Committee', 'Wristband Warriors',
+];
 
-  nameInput = h('input', { type: 'text', placeholder: 'Optional: name your crew (e.g. "Napa Squad")', maxlength: 64 });
+const MEMBER_NAMES = [
+  'Wild Vine', 'Lucky Barrel', 'Golden Stage', 'Breezy Grape',
+  'Mellow Wave', 'Groovy Riff', 'Funky Chord', 'Jazzy Beat',
+  'Sunny Note', 'Crispy Sound',
+];
 
-  return h('div.app', [
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomMemberName() {
+  return `${pick(MEMBER_NAMES)} ${Math.floor(10 + Math.random() * 90)}`;
+}
+
+export function landingView({ onReady }) {
+  const wrap = h('div.app', [
     h('div.brand', [
-      h('div', { style: { fontSize: '1.8rem' } }, '🎸'),
+      h('div.brand-logo', 'BottleRock'),
       h('div', [
-        h('div.brand-title', 'BottleRock Setlist Picks'),
-        h('div.brand-sub', 'Napa Valley · May 22–24, 2026'),
+        h('div.brand-title', 'Setlist Picks'),
+        h('div.brand-sub', 'Napa Valley \u00b7 May 22 \u2013 24, 2026'),
       ]),
     ]),
-    h('div.card.stack', [
-      h('h2', { style: { margin: 0 } }, 'Plan the festival with your crew'),
-      h(
-        'p.muted',
-        { style: { margin: 0 } },
-        'Create a group, share one link, everyone rates the artists they want to see, and you’ll see exactly where the crew is leaning at every conflicting time slot.',
-      ),
-      nameInput,
-      btn,
-      h('div.hint', 'Groups are kept for ~90 days. No accounts, no passwords.'),
-    ]),
-    h('div.card', [
-      h('h3', { style: { marginTop: 0 } }, 'How it works'),
-      h('ol.muted', { style: { margin: 0, paddingLeft: '20px', lineHeight: 1.6 } }, [
-        h('li', 'Create a group and share the invite link with friends.'),
-        h('li', 'Each person sets their name once (saved on their device).'),
-        h('li', 'Tap each artist to cycle Skip → 👍 Want → 🔥 Must See.'),
-        h('li', 'The Group tab shows everyone’s aggregated picks, so conflicts (Lorde vs Lil Wayne, anyone?) are obvious.'),
-      ]),
-    ]),
+    h('div.card.center', { style: { padding: '40px 20px', color: 'var(--ink-soft)', fontSize: '0.9rem' } }, 'Setting up your crew\u2026'),
   ]);
+
+  (async () => {
+    try {
+      const group = await api.createGroup(pick(GROUP_NAMES));
+      const { member } = await api.join(group.id, randomMemberName());
+      setIdentity(group.id, member);
+      onReady(group, member);
+    } catch (e) {
+      wrap.replaceChildren(
+        h('div.brand', [
+          h('div.brand-logo', 'BottleRock'),
+          h('div', [h('div.brand-title', 'Setlist Picks')]),
+        ]),
+        h('div.card.stack', [
+          h('p', { style: { margin: 0 } }, `Couldn\u2019t get started: ${e.message}`),
+          h('button.btn', { onClick: () => location.reload() }, 'Try again'),
+        ]),
+      );
+    }
+  })();
+
+  return wrap;
 }

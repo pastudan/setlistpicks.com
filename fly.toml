@@ -1,11 +1,10 @@
-# Rename the app and primary region before `fly deploy`. Once the app exists,
-# attach Redis with:
-#   fly redis create               # pick a name + region; copy the redis:// URL
-#   fly secrets set REDIS_URL=...  # paste the URL from the previous command
+# Deploy:
+#   fly launch --no-deploy   # accept existing config
+#   fly volumes create bottlerock_data --size 1 --region sjc
+#   fly deploy
 #
-# When you set up Redis in the Fly/Upstash dashboard, set the eviction policy
-# to `allkeys-lru` so old groups age out automatically (combined with our
-# 90-day TTL that refreshes on every read/write).
+# The SQLite file lives on the persistent volume at /data/bottlerock.db.
+# No Redis or external DB needed.
 
 app = "bottlerock-setlist-preferences"
 primary_region = "sjc"
@@ -14,24 +13,30 @@ primary_region = "sjc"
   dockerfile = "Dockerfile"
 
 [env]
-  PORT = "8080"
+  PORT     = "8080"
   NODE_ENV = "production"
+  DB_PATH  = "/data/bottlerock.db"
 
 [http_service]
   internal_port = 8080
-  force_https = true
-  auto_stop_machines = "stop"
+  force_https   = true
+  # Scale to zero when idle — volume persists data across restarts.
+  auto_stop_machines  = "stop"
   auto_start_machines = true
   min_machines_running = 0
 
   [[http_service.checks]]
-    interval = "30s"
-    timeout = "5s"
+    interval     = "30s"
+    timeout      = "5s"
     grace_period = "10s"
-    method = "GET"
-    path = "/healthz"
+    method       = "GET"
+    path         = "/healthz"
 
 [[vm]]
-  cpu_kind = "shared"
-  cpus = 1
+  cpu_kind  = "shared"
+  cpus      = 1
   memory_mb = 256
+
+[[mounts]]
+  source      = "bottlerock_data"
+  destination = "/data"
