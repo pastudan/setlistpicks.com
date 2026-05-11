@@ -57,6 +57,36 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
           <li>See what the group decides on</li>
         </ul>
 
+        {/* Show existing members when joining an existing group so they know
+            to type their name to recover their session */}
+        {groupName && (() => {
+          const others = mutedMembers.filter(m => m.key !== member.key);
+          if (!others.length) return null;
+          return (
+            <div style={{ fontSize: '0.82rem', color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+              <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.72rem' }}>
+                Already in this group:
+              </span>{' '}
+              {others.map((m, i) => (
+                <span key={m.key}>
+                  {i > 0 && <span style={{ color: 'var(--ink-dim)' }}>, </span>}
+                  <button onClick={() => setName(m.displayName)} style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                    fontWeight: 700, color: 'var(--ink)', fontSize: 'inherit',
+                    textDecoration: 'underline', textDecorationStyle: 'dotted',
+                    textUnderlineOffset: '2px',
+                  }}>
+                    {m.displayName}
+                  </button>
+                </span>
+              ))}
+              <div style={{ marginTop: 3, fontSize: '0.75rem', fontStyle: 'italic' }}>
+                Tap a name to rejoin as them.
+              </div>
+            </div>
+          );
+        })()}
+
         <div style={{ fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: groupName ? 12 : 0 }}>
           What&rsquo;s your name?
         </div>
