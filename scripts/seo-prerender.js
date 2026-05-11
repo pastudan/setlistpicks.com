@@ -3,7 +3,7 @@
 // Generates static HTML (lineup) and JSON-LD (MusicFestival schema) from the
 // shared schedule so Googlebot sees real content at `/` without running JS.
 
-import { SCHEDULE, STAGES, DAYS } from './shared/schedule.js';
+import { SCHEDULE, STAGES, DAYS } from '../shared/schedule.js';
 
 const STAGE_NAMES = Object.fromEntries(STAGES.map((s) => [s.id, s.name]));
 

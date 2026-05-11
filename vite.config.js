@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { renderLineupHtml, renderJsonLd } from './seo-prerender.js';
+import { renderLineupHtml, renderJsonLd } from './scripts/seo-prerender.js';
 
 function seoPrerender() {
   return {
