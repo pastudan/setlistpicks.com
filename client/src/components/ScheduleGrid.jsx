@@ -138,6 +138,21 @@ export default function ScheduleGrid({
           onLongPress={onLongPress}
         />
       ))}
+      <footer style={{
+        marginTop: '100px',
+        paddingBottom: '40px',
+        textAlign: 'center',
+        fontSize: '0.85rem',
+        color: 'var(--ink-soft)',
+      }}>
+        <a href="https://stuffbydan.com" target="_blank" rel="noopener noreferrer" style={{
+          color: 'inherit',
+          textDecoration: 'none',
+          fontWeight: 600,
+        }}>
+          Made with ❤ in San Francisco
+        </a>
+      </footer>
     </div>
   );
 }
