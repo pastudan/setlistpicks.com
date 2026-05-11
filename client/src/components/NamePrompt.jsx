@@ -88,7 +88,7 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
-          style={{ fontSize: '1rem' }}
+          style={{ fontSize: '16px' }}
         />
 
         {/* Per-keystroke collision hint */}

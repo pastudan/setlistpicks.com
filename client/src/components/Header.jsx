@@ -194,12 +194,12 @@ export default function Header({
           <label style={labelStyle}>Group name</label>
           <input type="text" value={groupInput} maxLength={64}
             placeholder="Crew name"
-            style={{ fontSize: '0.88rem', padding: '6px 10px' }}
+            style={{ fontSize: '16px', padding: '6px 10px' }}
             onChange={(e) => setGroupInput(e.target.value)} />
           <label style={{ ...labelStyle, marginTop: 2 }}>Your name</label>
           <input type="text" value={nameInput} maxLength={64}
             placeholder="Your name"
-            style={{ fontSize: '0.88rem', padding: '6px 10px' }}
+            style={{ fontSize: '16px', padding: '6px 10px' }}
             onChange={(e) => setNameInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && save()} />
           {(() => {

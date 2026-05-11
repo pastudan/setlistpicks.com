@@ -1,67 +1,81 @@
 # Deploying to Fly.io
 
-## First-time setup
+The app is live at **https://setlistpicks.com** (also https://bottlerock-picks.fly.dev).
+Every push to `main` deploys automatically via GitHub Actions.
+
+## First-time setup (for a new fork/clone)
 
 ### 1. Install flyctl
 
 ```bash
-brew install flyctl        # macOS
-# or: curl -L https://fly.io/install.sh | sh
+brew install flyctl   # macOS
 fly auth login
 ```
 
 ### 2. Create the app
 
 ```bash
-fly launch --no-deploy
+fly launch --no-deploy --org <your-org>
 ```
 
-Accept the existing `fly.toml` when prompted. The app name is `bottlerock-setlist-preferences` — change it in `fly.toml` if you want a different hostname.
+Accept the existing `fly.toml`. The app name (`bottlerock-picks`) and org (`bottlerock`)
+are already set — update `fly.toml` if you're deploying to a different account.
 
 ### 3. Create the persistent volume
 
-The SQLite database lives on a Fly volume that persists across deploys and machine restarts. Create it once:
+SQLite lives on a Fly volume that survives deploys and machine restarts. Create it once:
 
 ```bash
-fly volumes create bottlerock_data --size 1 --region sjc
+fly volumes create bottlerock_data --size 1 --region sjc --yes
 ```
 
-- `--size 1` = 1 GB (plenty — each group is < 10 KB)
-- `--region sjc` = San Jose; change to your preferred region
+- `--size 1` = 1 GB (each group is < 10 KB; this handles tens of thousands of groups)
+- `--region sjc` = San Jose; match your `primary_region` in `fly.toml`
 - The volume name **must** match `source = "bottlerock_data"` in `fly.toml`
 
-> ⚠️ A Fly volume is pinned to one machine in one region. This app intentionally runs a **single instance** (`min_machines_running = 0`). If you need multi-region or HA, look at [Litestream](https://litestream.io/) for replication.
+> ⚠️ A Fly volume is pinned to one machine in one region. This app runs a
+> **single instance** (`min_machines_running = 0`). For multi-region HA,
+> see [Litestream](https://litestream.io/) or [Turso](https://turso.tech/).
 
-### 4. Deploy
-
-```bash
-fly deploy
-```
-
-Fly builds the Docker image remotely (`--remote-only` in CI), runs the two-stage build (Vite frontend + native `better-sqlite3`), and swaps the machine.
-
-### 5. Set up GitHub Actions (automatic deploys)
-
-Add your Fly API token as a GitHub secret:
+### 4. Add the GitHub Actions deploy secret
 
 ```bash
-fly tokens create deploy -x 999999h   # long-lived deploy token
+fly tokens create deploy --app bottlerock-picks -x 999999h
 ```
 
-Copy the output, then in GitHub → repo → **Settings → Secrets and variables → Actions**, add:
+Copy the token, then in GitHub → repo → **Settings → Secrets and variables →
+Actions → New repository secret**:
 
-| Secret name | Value |
+| Secret | Value |
 |---|---|
-| `FLY_API_TOKEN` | the token from above |
+| `FLY_API_TOKEN` | token from above |
 
-Every push to `main` will now trigger `.github/workflows/deploy.yml` which runs `flyctl deploy --remote-only`.
+Every push to `main` now triggers `.github/workflows/deploy.yml`.
+
+### 5. Custom domain (optional)
+
+```bash
+fly certs add yourdomain.com --app bottlerock-picks
+fly certs add www.yourdomain.com --app bottlerock-picks
+```
+
+Add DNS records in your registrar (gray cloud / DNS-only if using Cloudflare):
+
+| Type | Name | Value |
+|---|---|---|
+| `A` | `@` | `66.241.125.84` |
+| `AAAA` | `@` | `2a09:8280:1::114:1aa1:0` |
+| `A` | `www` | `66.241.125.84` |
+| `AAAA` | `www` | `2a09:8280:1::114:1aa1:0` |
+
+Check validation progress: `fly certs check yourdomain.com --app bottlerock-picks`
 
 ---
 
 ## Subsequent deploys
 
 ```bash
-git push origin main   # CI picks it up automatically
+git push origin main   # CI deploys automatically
 # or manually:
 fly deploy
 ```
@@ -69,56 +83,62 @@ fly deploy
 ## Rollback
 
 ```bash
-fly releases list                  # find the release number
-fly deploy --image <image-ref>     # redeploy a previous image
+fly releases list
+fly deploy --image registry.fly.io/bottlerock-picks:<version>
 ```
 
 ## Monitoring
 
 ```bash
-fly logs              # live log tail
-fly status            # machine health
-fly ssh console       # shell into the running machine
-```
-
-## Architecture
-
-```
-GitHub push → Actions → flyctl deploy --remote-only
-                           │
-                           ▼
-                    Fly remote builder
-                    (Docker multi-stage)
-                    ├─ build: node:20-alpine
-                    │   ├─ apk build-base python3  (for better-sqlite3)
-                    │   ├─ npm install
-                    │   ├─ npm run build  (Vite → dist/)
-                    │   └─ npm prune --omit=dev
-                    └─ runtime: node:20-alpine
-                        ├─ node_modules (prod only)
-                        ├─ server/
-                        ├─ shared/
-                        └─ dist/
-                           │
-                           ▼
-                    Fly machine (256 MB shared CPU)
-                    ├─ Express + WebSocket server (:8080)
-                    ├─ better-sqlite3 (WAL mode)
-                    └─ /data/bottlerock.db  ←── persistent volume
+fly logs --app bottlerock-picks        # live log tail
+fly status --app bottlerock-picks      # machine + volume health
+fly ssh console --app bottlerock-picks # shell into running machine
+sqlite3 /data/bottlerock.db ".tables"  # inspect DB (inside console)
 ```
 
 ## Environment variables
 
-Set automatically by `fly.toml`. Override with `fly secrets set KEY=value`.
+Configured in `fly.toml`. Override secrets with `fly secrets set KEY=value`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `8080` | HTTP + WS listen port |
+| `PORT` | `8080` | HTTP + WebSocket listen port |
 | `NODE_ENV` | `production` | Disables Vite dev mode |
-| `DB_PATH` | `/data/bottlerock.db` | SQLite file location |
+| `DB_PATH` | `/data/bottlerock.db` | SQLite file on the persistent volume |
 
-## Scaling
+## Architecture
 
-The app runs a **single machine** that scales to zero when idle and wakes on first request (cold start ~2s). The SQLite volume is bound to that one machine.
+```
+git push → GitHub Actions → flyctl deploy --remote-only
+                                │
+                                ▼
+                         Fly remote builder (Docker multi-stage)
+                         ├─ build: node:20-alpine
+                         │   ├─ apk build-base python3   (better-sqlite3 native)
+                         │   ├─ npm install
+                         │   ├─ vite build  (→ dist/)
+                         │   └─ npm prune --omit=dev
+                         └─ runtime: node:20-alpine
+                             ├─ node_modules (prod only)
+                             ├─ server/
+                             ├─ shared/
+                             └─ dist/
+                                │
+                                ▼
+                         Fly machine (256 MB shared CPU, sjc)
+                         ├─ Express HTTP + WebSocket server (:8080)
+                         ├─ better-sqlite3 (WAL mode, in-process)
+                         └─ /data/bottlerock.db  ←── persistent volume
+```
 
-If you ever need horizontal scaling, migrate the DB layer to [Turso](https://turso.tech/) (distributed SQLite) and replace the in-process WebSocket rooms with a Redis pub/sub or Turso's real-time subscriptions.
+## Scaling notes
+
+The single-instance + SQLite setup handles hundreds of concurrent users easily
+(WAL mode allows many parallel readers; writes serialize in microseconds).
+
+If traffic grows significantly:
+1. `min_machines_running = 1` in `fly.toml` eliminates cold starts (~$5/mo)
+2. Cloudflare orange cloud with "Full (strict)" SSL caches static assets globally
+3. Upgrade VM: `memory_mb = 512` in `fly.toml`
+4. True horizontal scale: migrate to [Turso](https://turso.tech/) (distributed SQLite)
+   and replace in-process WS rooms with a pub/sub layer
