@@ -16,6 +16,7 @@ import {
   updateMemberDisplayName,
   removeMember,
 } from './groups.js';
+import { adminRouter } from './admin.js';
 import { SCHEDULE, STAGES, DAYS } from '../shared/schedule.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -153,6 +154,9 @@ app.post('/api/groups/:groupId/votes/:memberKey', (req, res) => {
   broadcastVotes(req.params.groupId);
   res.json(result);
 });
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+app.use('/admin', adminRouter);
 
 // ─── Static / SPA ─────────────────────────────────────────────────────────────
 const distDir = path.join(ROOT, 'dist');

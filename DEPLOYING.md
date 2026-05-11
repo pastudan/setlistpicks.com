@@ -87,6 +87,40 @@ fly releases list
 fly deploy --image registry.fly.io/bottlerock-picks:<version>
 ```
 
+## Backups
+
+Fly automatically takes **daily snapshots** of all volumes and retains them for 5 days.
+A GitHub Actions cron (`.github/workflows/snapshot.yml`) additionally creates **hourly snapshots**
+using `fly volumes snapshots create`.
+
+### One-time setup for hourly snapshots
+
+1. Get the volume ID:
+   ```bash
+   fly volumes list --app bottlerock-picks
+   ```
+2. In GitHub → repo → **Settings → Variables → Actions**, add:
+   - `FLY_VOLUME_ID` = `vol_xxxxxxxx` (the ID from step 1)
+
+The `FLY_API_TOKEN` secret is already present from the deploy workflow. Once the variable is set,
+the hourly snapshot workflow runs automatically.
+
+### Restore from a snapshot
+
+```bash
+# List available snapshots (daily + hourly)
+fly volumes snapshots list <volume-id> --app bottlerock-picks
+
+# Create a new volume restored from a specific snapshot
+fly volumes create bottlerock_data_restored \
+  --snapshot-id <snap_id> --size 1 --region sjc --app bottlerock-picks
+
+# Swap it in: edit fly.toml → change source to 'bottlerock_data_restored', then deploy
+fly deploy
+```
+
+---
+
 ## Monitoring
 
 ```bash
