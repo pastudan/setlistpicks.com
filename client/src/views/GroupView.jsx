@@ -169,6 +169,7 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
           setMemberDisplayName={setMemberDisplayName}
           mutedMembers={mutedMembers}
           setMutedMembers={setMutedMembers}
+          memberVoteCounts={memberVoteCounts}
           onLeave={onLeave}
           onEditingChange={setHeaderEditing}
         />

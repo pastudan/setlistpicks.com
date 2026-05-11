@@ -30,7 +30,7 @@ const dimLinkStyle = { ...linkStyle, color: 'var(--ink-dim)' };
 export default function Header({
   groupId, member, groupName, setGroupName,
   memberDisplayName, setMemberDisplayName,
-  mutedMembers, setMutedMembers, onLeave, onEditingChange,
+  mutedMembers, setMutedMembers, memberVoteCounts = {}, onLeave, onEditingChange,
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -40,17 +40,21 @@ export default function Header({
   }
   const [groupInput, setGroupInput]     = useState(groupName);
   const [nameInput, setNameInput]       = useState(memberDisplayName);
-  const [removingKey, setRemovingKey]   = useState(null); // member key being removed
+  const [removingKey, setRemovingKey]   = useState(null);
+  const [renamingKey, setRenamingKey]   = useState(null);
+  const [renameInput, setRenameInput]   = useState('');
 
   function openEdit() {
     setGroupInput(groupName);
     setNameInput(memberDisplayName);
     setRemovingKey(null);
+    setRenamingKey(null);
     applyEditing(true);
   }
 
   function closeEdit() {
     setRemovingKey(null);
+    setRenamingKey(null);
     applyEditing(false);
   }
 
@@ -106,6 +110,23 @@ export default function Header({
     setRemovingKey(null);
   }
 
+  async function doRenameMember(memberKey, newName) {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      await api.updateMember(groupId, memberKey, trimmed);
+      setMutedMembers((prev) => prev.map((m) => m.key === memberKey ? { ...m, displayName: trimmed } : m));
+      if (memberKey === member.key) {
+        setMemberDisplayName(trimmed);
+        setNameInput(trimmed);
+        setIdentity(groupId, { ...member, displayName: trimmed });
+      }
+    } catch (e) {
+      toast(`Couldn\u2019t rename: ${e.message}`);
+    }
+    setRenamingKey(null);
+  }
+
   async function doLeave(keepVotes) {
     try { await api.removeMember(groupId, member.key, { keepVotes }); } catch {}
     clearIdentity(groupId);
@@ -114,22 +135,71 @@ export default function Header({
 
   function MemberRow({ m }) {
     const isYou = m.key === member.key;
+    const voteCount = memberVoteCounts[m.key] || 0;
+    const inactive = voteCount === 0;
+
     const avatar = (
-      <span className="chip-avatar" style={isYou ? { background: 'var(--btn-primary)', color: '#fff' } : {}}>
+      <span className="chip-avatar" style={{
+        ...(isYou ? { background: 'var(--btn-primary)', color: '#fff' } : {}),
+        ...(inactive && !isYou ? { opacity: 0.45 } : {}),
+      }}>
         {initials(m.displayName)}
       </span>
     );
-    const name = (
-      <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+
+    const picksBadge = voteCount > 0 ? (
+      <span style={{
+        fontSize: '0.72rem', fontWeight: 700, color: 'var(--ink-soft)',
+        background: 'rgba(0,0,0,0.07)', borderRadius: '999px',
+        padding: '1px 7px', whiteSpace: 'nowrap', flexShrink: 0,
+      }}>
+        {voteCount} pick{voteCount !== 1 ? 's' : ''}
+      </span>
+    ) : (
+      <span style={{ fontSize: '0.72rem', color: 'var(--ink-dim)', fontStyle: 'italic', flexShrink: 0 }}>
+        no picks yet
+      </span>
+    );
+
+    const nameEl = (
+      <span style={{
+        flex: 1, fontSize: '0.82rem', fontWeight: 600, minWidth: 0,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        ...(inactive && !isYou ? { opacity: 0.5 } : {}),
+      }}>
         {m.displayName}{isYou && <span className="chip-you"> (you)</span>}
       </span>
     );
 
+    // ── Rename mode ───────────────────────────────────────────────────────────
+    if (renamingKey === m.key) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {avatar}
+          <input
+            type="text"
+            value={renameInput}
+            maxLength={64}
+            autoFocus
+            style={{ flex: 1, fontSize: '16px', padding: '4px 8px' }}
+            onChange={(e) => setRenameInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') doRenameMember(m.key, renameInput);
+              if (e.key === 'Escape') setRenamingKey(null);
+            }}
+          />
+          <button className="btn small" onClick={() => doRenameMember(m.key, renameInput)}>Save</button>
+          <button style={dimLinkStyle} onClick={() => setRenamingKey(null)}>cancel</button>
+        </div>
+      );
+    }
+
+    // ── Remove confirmation ───────────────────────────────────────────────────
     if (removingKey === m.key) {
       if (isYou) {
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, background: 'rgba(180,40,40,0.05)', border: '1px solid rgba(180,40,40,0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{avatar}{name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{avatar}{nameEl}</div>
             <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#b42828' }}>
               ⚠️ Caution&mdash;you&rsquo;re removing yourself!
             </div>
@@ -146,17 +216,20 @@ export default function Header({
       }
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {avatar}{name}
+          {avatar}{nameEl}
           <button className="btn danger small" onClick={() => doRemoveMember(m.key, { keepVotes: false })}>Remove</button>
           <button style={dimLinkStyle} onClick={() => setRemovingKey(null)}>cancel</button>
         </div>
       );
     }
 
+    // ── Default row ───────────────────────────────────────────────────────────
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {avatar}{name}
-        <button style={linkStyle} onClick={() => setRemovingKey(m.key)}>remove</button>
+        {avatar}{nameEl}
+        {picksBadge}
+        <button style={linkStyle} onClick={() => { setRenamingKey(m.key); setRenameInput(m.displayName); setRemovingKey(null); }}>rename</button>
+        <button style={linkStyle} onClick={() => { setRemovingKey(m.key); setRenamingKey(null); }}>remove</button>
       </div>
     );
   }
