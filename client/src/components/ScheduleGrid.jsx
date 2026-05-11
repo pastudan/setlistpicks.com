@@ -152,7 +152,7 @@ export default function ScheduleGrid({
         }}>
           Made with ♥ in San Francisco
         </a>
-        <div style={{
+        {/* <div style={{
           marginTop: '20px',
           fontSize: '0.7rem',
           color: 'var(--ink-dim)',
@@ -162,7 +162,7 @@ export default function ScheduleGrid({
           marginRight: 'auto',
         }}>
           We collect IP addresses for rate limiting and the names you enter. No tracking, marketing, or data sharing.
-        </div>
+        </div> */}
       </footer>
     </div>
   );
