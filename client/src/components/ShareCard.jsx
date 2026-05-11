@@ -1,16 +1,15 @@
-import React from 'react';
-import { toast } from '../toast.js';
+import React, { useState, useRef } from 'react';
 
 export default function ShareCard({ groupId, memberKey, mutedMembers, memberVoteCounts = {}, onMemberClick }) {
   const url = `${location.origin}/${groupId}`;
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast('Invite link copied');
-    } catch {
-      toast('Invite link copied');
-    }
+    try { await navigator.clipboard.writeText(url); } catch { /* fallback: still show feedback */ }
+    setCopied(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
   }
 
   const linkStyle = {
@@ -27,7 +26,13 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
       </div>
       <div className="share-row">
         <input type="text" readOnly value={url} style={{ fontSize: '0.82rem' }} />
-        <button className="btn secondary" onClick={copy}>Copy</button>
+        <button
+          className="btn secondary"
+          onClick={copy}
+          style={copied ? { background: 'var(--btn-primary)', color: '#fff', borderColor: 'var(--btn-primary)' } : undefined}
+        >
+          {copied ? 'Copied!' : 'Copy Link'}
+        </button>
       </div>
       {mutedMembers.length > 0 && (
         <div style={{ fontSize: '0.88rem', lineHeight: 1.6, display: 'flex', flexWrap: 'wrap', gap: '8px 12px' }}>

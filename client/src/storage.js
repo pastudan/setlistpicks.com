@@ -4,6 +4,7 @@
 // browser is for each group.
 
 const KEY = 'brsp.identities.v1';
+const ACTIVE_KEY = 'brsp.activeGroup.v1';
 
 function readAll() {
   try {
@@ -31,4 +32,16 @@ export function clearIdentity(groupId) {
   const all = readAll();
   delete all[groupId];
   writeAll(all);
+}
+
+export function getActiveGroup() {
+  return localStorage.getItem(ACTIVE_KEY) || null;
+}
+
+export function setActiveGroup(groupId) {
+  localStorage.setItem(ACTIVE_KEY, groupId);
+}
+
+export function clearActiveGroup() {
+  localStorage.removeItem(ACTIVE_KEY);
 }

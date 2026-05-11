@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from './api.js';
-import { getIdentity, setIdentity } from './storage.js';
+import { getIdentity, setIdentity, getActiveGroup, setActiveGroup, clearActiveGroup } from './storage.js';
 import { ensureSvgDefs } from './svgDefs.js';
 import GroupView from './views/GroupView.jsx';
 
@@ -81,9 +81,10 @@ export default function App() {
         freshJoin = true;
       }
 
+      setActiveGroup(groupId);
       setGroupState({ groupId, member: identity, groupMeta, freshJoin });
     } catch (e) {
-      if (e.status === 404) setError('That group link looks expired or invalid.');
+      if (e.status === 404) { clearActiveGroup(); setError('That group link looks expired or invalid.'); }
       else setError(e.message);
     } finally {
       setLoading(false);
@@ -91,11 +92,19 @@ export default function App() {
     }
   }
 
-  // Route: / → auto-create and redirect
+  // Route: / → resume stored group or auto-create a new one
   useEffect(() => {
     if (path !== '/' && path !== '') return;
     if (navigating.current) return;
     navigating.current = true;
+
+    const stored = getActiveGroup();
+    if (stored) {
+      navigating.current = false;
+      navigate(`/${stored}`, { replace: true });
+      return;
+    }
+
     (async () => {
       try {
         const group = await api.createGroup(randomGroupName());
@@ -143,7 +152,7 @@ export default function App() {
         </div>
         <div className="card stack">
           <p style={{ margin: 0 }}>{error}</p>
-          <button className="btn" onClick={() => { setError(null); navigate('/'); }}>Start over</button>
+          <button className="btn" onClick={() => { clearActiveGroup(); setError(null); navigate('/'); }}>Start over</button>
         </div>
       </div>
     );
@@ -157,7 +166,7 @@ export default function App() {
         member={groupState.member}
         groupMeta={groupState.groupMeta}
         freshJoin={groupState.freshJoin}
-        onLeave={() => navigate('/')}
+        onLeave={() => { clearActiveGroup(); navigate('/'); }}
       />
     );
   }
