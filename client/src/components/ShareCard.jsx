@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 
 export default function ShareCard({ groupId, memberKey, mutedMembers, memberVoteCounts = {}, onMemberClick }) {
   const url = `${location.origin}/${groupId}`;
+  const displayUrl = `${location.host}/${groupId}`;
   const [copied, setCopied] = useState(false);
   const timerRef = useRef(null);
 
@@ -25,7 +26,15 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
         Invite your crew
       </div>
       <div className="share-row">
-        <input type="text" readOnly value={url} style={{ fontSize: '0.82rem' }} />
+        <div onClick={copy} style={{
+          flex: 1, fontSize: '0.82rem', fontFamily: 'inherit',
+          padding: '0 10px', height: '36px', display: 'flex', alignItems: 'center',
+          background: 'var(--paper)', border: '1px solid var(--rule)',
+          borderRadius: '4px', cursor: 'pointer', userSelect: 'none',
+          overflow: 'hidden', whiteSpace: 'nowrap', color: 'var(--ink)',
+        }}>
+          {displayUrl}
+        </div>
         <button
           className="btn secondary"
           onClick={copy}
