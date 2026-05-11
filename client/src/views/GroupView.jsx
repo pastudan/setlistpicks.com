@@ -1,5 +1,5 @@
 import React, {
-  useState, useEffect, useCallback, useMemo,
+  useState, useEffect, useCallback, useMemo, useRef,
 } from 'react';
 import { DAYS } from '../../../shared/schedule.js';
 import { api } from '../api.js';
@@ -25,7 +25,9 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
   const [popup,            setPopup]            = useState(null); // { id, artist }
   const [memberPopup,      setMemberPopup]      = useState(null); // { key, displayName }
 
-
+  // Tracks in-flight local vote changes so the WS sync below doesn't clobber
+  // an optimistic update before our own save round-trips back to us.
+  const pendingVotesRef = useRef(new Map()); // artistId → expected server score
 
   // ── Fetch my votes ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -49,12 +51,39 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
           const msg = JSON.parse(e.data);
           if (msg.type === 'votes') {
             if (msg.members)   setMutedMembers(msg.members);
-            if (msg.perArtist) setPerArtistRaw(msg.perArtist);
             if (msg.groupName) setGroupName(msg.groupName);
             // Keep memberDisplayName in sync with server's record of our name
             if (msg.members) {
               const me = msg.members.find((m) => m.key === member.key);
               if (me) setMemberDisplayName(me.displayName);
+            }
+            if (msg.perArtist) {
+              setPerArtistRaw(msg.perArtist);
+
+              // Sync my own votes from the broadcast — this is what makes the
+              // show-block highlight update when the same account votes from
+              // another device (or after session recovery). We extract entries
+              // where v.key matches us, then preserve in-flight optimistic
+              // updates that haven't echoed back yet.
+              const fromServer = {};
+              for (const [artistId, voters] of Object.entries(msg.perArtist)) {
+                const mine = voters.find((v) => v.key === member.key);
+                if (mine && mine.score > 0) fromServer[artistId] = mine.score;
+              }
+              setMyVotes(() => {
+                const next = { ...fromServer };
+                for (const [artistId, expected] of pendingVotesRef.current) {
+                  const serverScore = fromServer[artistId] || 0;
+                  if (serverScore === expected) {
+                    pendingVotesRef.current.delete(artistId);
+                  } else {
+                    // Server hasn't caught up yet — keep our optimistic value.
+                    if (expected > 0) next[artistId] = expected;
+                    else delete next[artistId];
+                  }
+                }
+                return next;
+              });
             }
           }
         } catch { /* ignore */ }
@@ -80,6 +109,7 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
 
   // ── Vote handler (stable identity via useCallback, optimistic) ───────────────
   const handleVoteChange = useCallback((artistId, newScore) => {
+    pendingVotesRef.current.set(artistId, newScore);
     setMyVotes((prev) => ({ ...prev, [artistId]: newScore }));
   }, []);
 

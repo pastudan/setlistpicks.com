@@ -28,7 +28,8 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
       <div className="share-row">
         <div onClick={copy} style={{
           flex: 1, fontSize: '0.82rem', fontFamily: 'inherit',
-          padding: '12px 10px', display: 'flex', alignItems: 'center',
+          padding: 0, paddingLeft: '10px', paddingRight: '10px',
+          height: '42px', display: 'flex', alignItems: 'center',
           background: 'var(--paper)', border: '1px solid rgba(36,103,177,0.35)',
           cursor: 'pointer', userSelect: 'none',
           overflow: 'hidden', whiteSpace: 'nowrap', color: 'var(--ink)',
@@ -38,7 +39,10 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
         <button
           className="btn secondary"
           onClick={copy}
-          style={copied ? { background: 'var(--btn-primary)', color: '#fff', borderColor: 'var(--btn-primary)' } : undefined}
+          style={{
+            paddingTop: 0, paddingBottom: 0, height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            ...(copied ? { background: 'var(--btn-primary)', color: '#fff', borderColor: 'var(--btn-primary)' } : {}),
+          }}
         >
           {copied ? 'Copied!' : 'Copy Link'}
         </button>
