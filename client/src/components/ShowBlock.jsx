@@ -66,7 +66,7 @@ function GroupVotesEl({ votes, myVote, memberKey, memberDisplayName }) {
 
 const ShowBlock = React.memo(function ShowBlock({
   s, myVote, groupVotes, memberKey, memberDisplayName,
-  groupId, onVoteChange, onLongPress,
+  groupId, onVoteChange, onLongPress, onNotMember,
 }) {
   const col = STAGE_COL[s.stageId];
   if (!col) return null;
@@ -93,11 +93,15 @@ const ShowBlock = React.memo(function ShowBlock({
       await api.setVote(groupId, memberKey, s.id, next);
     } catch (e) {
       onVoteChange(s.id, myVote); // revert
-      toast(`Save failed: ${e.message}`);
+      if (e.message === 'not_a_member') {
+        onNotMember?.();
+      } else {
+        toast(`Save failed: ${e.message}`);
+      }
     } finally {
       setSaving(false);
     }
-  }, [myVote, saving, s.id, groupId, memberKey, onVoteChange]);
+  }, [myVote, saving, s.id, groupId, memberKey, onVoteChange, onNotMember]);
 
   // Long-press
   const longPressTimer = useRef(null);
@@ -148,9 +152,10 @@ const ShowBlock = React.memo(function ShowBlock({
   );
 }, (prev, next) => (
   // Only re-render if this show's vote or group picks changed
-  prev.myVote      === next.myVote &&
-  prev.groupVotes  === next.groupVotes &&
-  prev.memberDisplayName === next.memberDisplayName
+  prev.myVote        === next.myVote &&
+  prev.groupVotes    === next.groupVotes &&
+  prev.memberDisplayName === next.memberDisplayName &&
+  prev.onNotMember   === next.onNotMember
 ));
 
 export { ShowBlock, TOTAL_SLOTS, STAGE_COL, minToSlot, GRID_START_MIN };

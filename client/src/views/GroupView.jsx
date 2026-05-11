@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import { DAYS } from '../../../shared/schedule.js';
 import { api } from '../api.js';
+import { clearIdentity } from '../storage.js';
 import Header from '../components/Header.jsx';
 import ShareCard from '../components/ShareCard.jsx';
 import Legend from '../components/Legend.jsx';
@@ -124,6 +125,14 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
     setShowNamePrompt(false);
   }
 
+  // ── Not-a-member recovery: clear stale identity and reload ───────────────────
+  // App.jsx will detect the missing identity, re-join with a random name, and
+  // set freshJoin=true so the NamePrompt appears automatically.
+  const handleNotMember = useCallback(() => {
+    clearIdentity(groupId);
+    location.reload();
+  }, [groupId]);
+
   // ── Per-member vote counts (WANT + MUST SEE only) ────────────────────────────
   const memberVoteCounts = useMemo(() => {
     const counts = {};
@@ -188,6 +197,7 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
         setActiveDay={setActiveDay}
         onVoteChange={handleVoteChange}
         onLongPress={handleLongPress}
+        onNotMember={handleNotMember}
       />}
 
       {/* Name prompt modal */}

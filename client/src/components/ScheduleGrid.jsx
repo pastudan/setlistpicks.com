@@ -26,7 +26,7 @@ function ordinalSuffix(n) {
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 
-function DayGrid({ day, myVotes, perArtistRaw, memberKey, memberDisplayName, groupId, onVoteChange, onLongPress }) {
+function DayGrid({ day, myVotes, perArtistRaw, memberKey, memberDisplayName, groupId, onVoteChange, onLongPress, onNotMember }) {
   const daySets = SCHEDULE.filter((s) => s.dayId === day.id);
   const dayNum = parseInt(day.date.split(' ')[1], 10);
   const dayDate = `${dayNum}${ordinalSuffix(dayNum)}`;
@@ -67,6 +67,7 @@ function DayGrid({ day, myVotes, perArtistRaw, memberKey, memberDisplayName, gro
               groupId={groupId}
               onVoteChange={onVoteChange}
               onLongPress={onLongPress}
+              onNotMember={onNotMember}
             />
           ))}
         </div>
@@ -79,7 +80,7 @@ const LAST_SCROLL_KEY = 'brsp.lastScroll.v1';
 
 export default function ScheduleGrid({
   myVotes, perArtistRaw, memberKey, memberDisplayName,
-  groupId, activeDay, setActiveDay, onVoteChange, onLongPress,
+  groupId, activeDay, setActiveDay, onVoteChange, onLongPress, onNotMember,
 }) {
   const bodyRef = useRef(null);
   const observerRef = useRef(null);
@@ -136,6 +137,7 @@ export default function ScheduleGrid({
           groupId={groupId}
           onVoteChange={onVoteChange}
           onLongPress={onLongPress}
+          onNotMember={onNotMember}
         />
       ))}
       <footer style={{
