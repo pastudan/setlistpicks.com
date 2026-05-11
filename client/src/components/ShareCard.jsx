@@ -28,9 +28,9 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
       <div className="share-row">
         <div onClick={copy} style={{
           flex: 1, fontSize: '0.82rem', fontFamily: 'inherit',
-          padding: '0 10px', height: '36px', display: 'flex', alignItems: 'center',
+          padding: '12px 10px', display: 'flex', alignItems: 'center',
           background: 'var(--paper)', border: '1px solid var(--rule)',
-          borderRadius: '4px', cursor: 'pointer', userSelect: 'none',
+          cursor: 'pointer', userSelect: 'none',
           overflow: 'hidden', whiteSpace: 'nowrap', color: 'var(--ink)',
         }}>
           {displayUrl}
