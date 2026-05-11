@@ -4,12 +4,15 @@ import { SCHEDULE_BY_ID } from '../shared/schedule.js';
 
 const newGroupId = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 10);
 
+const MAX_DISPLAY_NAME_LEN = 50;   // per-member name
+const MAX_GROUP_NAME_LEN   = 100;  // long enough for a funny name, not a novel
+
 function normalizeName(name) {
-  return String(name || '').trim().toLowerCase().slice(0, 64);
+  return String(name || '').trim().toLowerCase().slice(0, MAX_DISPLAY_NAME_LEN);
 }
 
-function cleanDisplayName(name) {
-  return String(name || '').trim().slice(0, 64);
+function cleanDisplayName(name, maxLen = MAX_DISPLAY_NAME_LEN) {
+  return String(name || '').trim().slice(0, maxLen);
 }
 
 function touch(groupId) {
@@ -17,14 +20,19 @@ function touch(groupId) {
 }
 
 // Prepared statements — created once, reused on every call (better-sqlite3 caches internally).
-const stmts = {
-  insertGroup:  db.prepare('INSERT INTO groups (id, name, created_at, last_active) VALUES (?, ?, ?, ?)'),
-  getGroup:     db.prepare('SELECT * FROM groups WHERE id = ?'),
-  touchGroup:   db.prepare('UPDATE groups SET last_active = ? WHERE id = ?'),
-  updateGroupName: db.prepare('UPDATE groups SET name = ?, last_active = ? WHERE id = ?'),
+const MAX_GROUPS_PER_IP  = 10;
+const MAX_MEMBERS_PER_IP = 25;
 
-  getMember:    db.prepare('SELECT * FROM members WHERE group_id = ? AND member_key = ?'),
-  insertMember: db.prepare('INSERT INTO members (group_id, member_key, display_name, joined_at, last_seen) VALUES (?, ?, ?, ?, ?)'),
+const stmts = {
+  insertGroup:      db.prepare('INSERT INTO groups (id, name, created_at, last_active, creator_ip) VALUES (?, ?, ?, ?, ?)'),
+  countGroupsByIp:  db.prepare('SELECT COUNT(*) AS cnt FROM groups WHERE creator_ip = ?'),
+  getGroup:         db.prepare('SELECT * FROM groups WHERE id = ?'),
+  touchGroup:       db.prepare('UPDATE groups SET last_active = ? WHERE id = ?'),
+  updateGroupName:  db.prepare('UPDATE groups SET name = ?, last_active = ? WHERE id = ?'),
+
+  getMember:        db.prepare('SELECT * FROM members WHERE group_id = ? AND member_key = ?'),
+  countMembersByIp: db.prepare('SELECT COUNT(*) AS cnt FROM members WHERE creator_ip = ?'),
+  insertMember:     db.prepare('INSERT INTO members (group_id, member_key, display_name, joined_at, last_seen, creator_ip) VALUES (?, ?, ?, ?, ?, ?)'),
   touchMember:  db.prepare('UPDATE members SET last_seen = ? WHERE group_id = ? AND member_key = ?'),
   updateMemberName: db.prepare('UPDATE members SET display_name = ?, last_seen = ? WHERE group_id = ? AND member_key = ?'),
   listMembers:  db.prepare('SELECT member_key, display_name FROM members WHERE group_id = ?'),
@@ -41,11 +49,15 @@ const stmts = {
   getAllVotes:   db.prepare('SELECT member_key, artist_id, score FROM votes WHERE group_id = ?'),
 };
 
-export function createGroup({ groupName } = {}) {
+export function createGroup({ groupName, creatorIp } = {}) {
+  if (creatorIp) {
+    const { cnt } = stmts.countGroupsByIp.get(creatorIp);
+    if (cnt >= MAX_GROUPS_PER_IP) return { error: 'rate_limited' };
+  }
   const id = newGroupId();
   const now = Date.now();
-  const name = cleanDisplayName(groupName) || '';
-  stmts.insertGroup.run(id, name, now, now);
+  const name = cleanDisplayName(groupName, MAX_GROUP_NAME_LEN) || '';
+  stmts.insertGroup.run(id, name, now, now, creatorIp ?? null);
   return { id, name, createdAt: now };
 }
 
@@ -56,7 +68,7 @@ export function getGroupMeta(groupId) {
   return { id: row.id, name: row.name, createdAt: row.created_at };
 }
 
-export function joinGroup(groupId, displayName) {
+export function joinGroup(groupId, displayName, creatorIp) {
   const group = stmts.getGroup.get(groupId);
   if (!group) return { error: 'group_not_found' };
 
@@ -72,7 +84,12 @@ export function joinGroup(groupId, displayName) {
     return { member: { key, displayName: existing.display_name } };
   }
 
-  stmts.insertMember.run(groupId, key, display, now, now);
+  if (creatorIp) {
+    const { cnt } = stmts.countMembersByIp.get(creatorIp);
+    if (cnt >= MAX_MEMBERS_PER_IP) return { error: 'rate_limited' };
+  }
+
+  stmts.insertMember.run(groupId, key, display, now, now, creatorIp ?? null);
   return { member: { key, displayName: display } };
 }
 
@@ -122,7 +139,7 @@ export function getAllVotes(groupId) {
 }
 
 export function updateGroupName(groupId, newName) {
-  const name = cleanDisplayName(newName);
+  const name = cleanDisplayName(newName, MAX_GROUP_NAME_LEN);
   if (!name) return { error: 'invalid_name' };
   const info = stmts.updateGroupName.run(name, Date.now(), groupId);
   if (!info.changes) return { error: 'group_not_found' };

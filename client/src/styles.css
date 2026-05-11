@@ -32,6 +32,13 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Prevent iOS Safari from auto-scaling text after pull-to-refresh or
+     orientation change, which causes the "everything is huge" effect */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body {
   margin: 0;
@@ -154,6 +161,17 @@ input[type="text"]::placeholder {
   background: #b42828;
   color: #fff;
 }
+.btn.leave {
+  background: transparent;
+  color: #b42828;
+  border: 1.5px solid rgba(180, 40, 40, 0.4);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.btn.leave:hover {
+  background: #b42828;
+  color: #fff;
+  border-color: #b42828;
+}
 .btn.small {
   padding: 8px 14px;
   font-size: 0.78rem;
@@ -252,7 +270,9 @@ input[type="text"]::placeholder {
 /* ─── Schedule grid ─────────────────────────────────────────────────── */
 .schedule-wrap {
   position: relative;
-  overflow-x: hidden;
+  /* overflow-x intentionally not set — html/body overflow-x:hidden prevents
+     horizontal scroll while still allowing the wash SVG to bleed past the
+     right edge of the last column */
 }
 
 .schedule-grid {
@@ -760,38 +780,44 @@ input[type="text"]::placeholder {
     padding-right: 10px;
   }
 
+  /* Two-row brand header on mobile */
+  .brand {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "logo badge"
+      "info info";
+    gap: 2px 0;
+    padding-bottom: 12px;
+  }
+  .brand-logo    { grid-area: logo; align-self: center; }
+  .brand-info    { grid-area: info; }
+  .profile-badge { grid-area: badge; align-self: center; }
+
   /*
    * Time axis hidden by default (stage columns use full width).
    * Slides in once you've scrolled past the day heading and need the
    * reference — toggled by JS adding .time-active to the grid.
    */
-  /* Time column visible by default; hides once you scroll past the day heading */
   .schedule-grid {
-    grid-template-columns: 20px repeat(4, minmax(0, 1fr));
+    grid-template-columns: 16px repeat(4, minmax(0, 1fr));
     column-gap: 3px;
-    transition: grid-template-columns 0.18s ease;
-  }
-  .schedule-grid.time-hidden {
-    grid-template-columns: 0px repeat(4, minmax(0, 1fr));
   }
 
   .schedule-grid::after {
-    left: 20px;
-  }
-  .schedule-grid.time-hidden::after {
-    left: 0;
+    left: 16px;
   }
 
   .time-label {
     overflow: hidden;
-    padding-right: 3px;
-    font-size: 0.55rem;
-    opacity: 1;
-    transition: opacity 0.18s ease;
+    padding-right: 2px;
+    font-size: 0.52rem;
     pointer-events: none;
   }
-  .schedule-grid.time-hidden .time-label {
-    opacity: 0;
+
+  /* Hide the "PM" suffix on mobile — just show the number */
+  .time-label .time-pm {
+    display: none;
   }
 
   .stage-header {
@@ -808,9 +834,8 @@ input[type="text"]::placeholder {
   .show-block .artist-name {
     font-size: 0.58rem;
   }
-  /* Hide time range inside block — too small and redundant on mobile */
   .show-block .show-time {
-    display: none;
+    font-size: 0.52rem;
   }
 
   .day-heading .day-name {

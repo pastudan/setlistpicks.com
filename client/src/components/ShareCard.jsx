@@ -52,7 +52,7 @@ export default function ShareCard({ groupId, memberKey, mutedMembers, memberVote
                 </span>
               )}
               {m.key === memberKey && (
-                <span style={{ color: 'var(--ink-soft)', fontWeight: 400 }}> (you)</span>
+                <span style={{ color: 'var(--ink-soft)', fontWeight: 400, fontSize: '0.7em', marginLeft: 3, position: 'relative', top: '-2px' }}>(you)</span>
               )}
             </span>
           ))}

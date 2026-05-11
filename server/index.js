@@ -23,6 +23,8 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT) || 8080;
 
 const app = express();
+// Trust one hop of X-Forwarded-For so req.ip reflects the real client behind a reverse proxy.
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '32kb' }));
 
 // ─── WebSocket rooms ──────────────────────────────────────────────────────────
@@ -85,7 +87,8 @@ app.get('/api/schedule', (_req, res) => {
 
 app.post('/api/groups', (req, res) => {
   try {
-    const meta = createGroup({ groupName: req.body?.groupName });
+    const meta = createGroup({ groupName: req.body?.groupName, creatorIp: req.ip });
+    if (meta.error === 'rate_limited') return res.status(429).json(meta);
     res.json(meta);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -107,7 +110,8 @@ app.patch('/api/groups/:groupId', (req, res) => {
 });
 
 app.post('/api/groups/:groupId/join', (req, res) => {
-  const result = joinGroup(req.params.groupId, req.body?.displayName);
+  const result = joinGroup(req.params.groupId, req.body?.displayName, req.ip);
+  if (result.error === 'rate_limited') return res.status(429).json(result);
   if (result.error) return res.status(400).json(result);
   // Broadcast updated member list to group
   broadcastVotes(req.params.groupId);

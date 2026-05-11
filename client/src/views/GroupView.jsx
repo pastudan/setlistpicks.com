@@ -144,11 +144,11 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
         )}
       </div>
 
-      {/* Sticky legend */}
-      <Legend />
+      {/* Legend + grid hidden while editing */}
+      {!headerEditing && <Legend />}
 
       {/* All three day grids */}
-      <ScheduleGrid
+      {!headerEditing && <ScheduleGrid
         myVotes={myVotes}
         perArtistRaw={perArtistRaw}
         memberKey={member.key}
@@ -158,7 +158,7 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
         setActiveDay={setActiveDay}
         onVoteChange={handleVoteChange}
         onLongPress={handleLongPress}
-      />
+      />}
 
       {/* Name prompt modal */}
       {showNamePrompt && (

@@ -37,13 +37,27 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
           <li>Share a link with your crew</li>
           <li>See what the group decides on</li>
         </ul>
-        <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '4px 0' }} />
-        {groupName && (
-          <div style={{ fontSize: '0.88rem', color: 'var(--ink-soft)', fontWeight: 600 }}>
-            Joining{' '}
-            <span style={{ color: 'var(--ink)', fontWeight: 800 }}>{groupName}</span>
+        {/* <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '4px 0 10px' }} /> */}
+        {/* {groupName && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--ink-soft)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Joining Group
+            </span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '4px 14px',
+              border: '1.5px solid var(--ink)',
+              borderRadius: '3px',
+              fontSize: '0.92rem', fontWeight: 800,
+              color: 'var(--ink)',
+              letterSpacing: '0.02em',
+              background: 'rgba(36,103,177,0.06)',
+            }}>
+              {groupName}
+            </span>
           </div>
-        )}
+        )} */}
+        <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '10px 0 8px' }} />
         <div style={{ fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           What&rsquo;s your name?
         </div>

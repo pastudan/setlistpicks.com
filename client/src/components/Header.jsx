@@ -153,7 +153,7 @@ export default function Header({
   const brandRow = (
     <div className="brand">
       <div className="brand-logo">BottleRock</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="brand-info" style={{ flex: 1, minWidth: 0 }}>
         <div className="brand-title">{displayGroupName}</div>
         <div className="brand-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {memberCount} {memberCount === 1 ? 'member' : 'members'}
@@ -168,7 +168,7 @@ export default function Header({
             </>
           )}
         </div>
-      </div>
+      </div>{/* .brand-info */}
       <button className="profile-badge" onClick={editing ? undefined : openEdit}
         title={editing ? undefined : 'Edit your name & crew'}
         style={editing ? { cursor: 'default' } : {}}>
@@ -206,6 +206,12 @@ export default function Header({
           <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
             <button className="btn" onClick={save}>Save</button>
             <button className="btn ghost" onClick={closeEdit}>Cancel</button>
+            {removingKey !== member.key && (
+              <button className="btn leave" style={{ marginLeft: 'auto' }}
+                onClick={() => setRemovingKey(member.key)}>
+                Leave Group
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -82,6 +82,10 @@ const ShowBlock = React.memo(function ShowBlock({
 
   const handleClick = useCallback(async () => {
     if (saving) return;
+    // Clearing the ref here causes it to be recomputed on the very next render
+    // (which is triggered by myVote changing). WS-only re-renders never clear
+    // it, so peers' votes never disturb your brushstroke.
+    washDataRef.current = null;
     const next = nextScore(myVote);
     onVoteChange(s.id, next); // optimistic
     setSaving(true);

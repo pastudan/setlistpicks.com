@@ -23,15 +23,17 @@ db.exec(`
     id          TEXT    PRIMARY KEY,
     name        TEXT    NOT NULL DEFAULT '',
     created_at  INTEGER NOT NULL,
-    last_active INTEGER NOT NULL
+    last_active INTEGER NOT NULL,
+    creator_ip  TEXT
   );
 
   CREATE TABLE IF NOT EXISTS members (
-    group_id    TEXT    NOT NULL REFERENCES groups(id),
-    member_key  TEXT    NOT NULL,
-    display_name TEXT   NOT NULL,
-    joined_at   INTEGER NOT NULL,
-    last_seen   INTEGER NOT NULL,
+    group_id     TEXT    NOT NULL REFERENCES groups(id),
+    member_key   TEXT    NOT NULL,
+    display_name TEXT    NOT NULL,
+    joined_at    INTEGER NOT NULL,
+    last_seen    INTEGER NOT NULL,
+    creator_ip   TEXT,
     PRIMARY KEY (group_id, member_key)
   );
 
@@ -74,5 +76,13 @@ function pruneStaleGroups() {
 
 pruneStaleGroups();
 setInterval(pruneStaleGroups, 6 * 60 * 60 * 1000).unref(); // every 6 hours, non-blocking
+
+// Safe migrations: add columns that predate this version of the schema.
+for (const sql of [
+  'ALTER TABLE groups   ADD COLUMN creator_ip TEXT',
+  'ALTER TABLE members  ADD COLUMN creator_ip TEXT',
+]) {
+  try { db.exec(sql); } catch { /* column already exists */ }
+}
 
 console.log(`[db] SQLite open at ${DB_PATH}`);
