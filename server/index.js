@@ -24,9 +24,15 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT) || 8080;
 
 const app = express();
-// Trust one hop of X-Forwarded-For so req.ip reflects the real client behind a reverse proxy.
-app.set('trust proxy', 1);
+// Trust the full X-Forwarded-For chain (needed for req.ip fallback in local dev).
+app.set('trust proxy', true);
 app.use(express.json({ limit: '32kb' }));
+
+// Fly.io sets Fly-Client-IP to the real end-user IP before the request reaches
+// the app machine, so prefer that over req.ip (which can resolve to a Fly infra IP).
+function clientIp(req) {
+  return req.headers['fly-client-ip'] || req.ip;
+}
 
 // ─── WebSocket rooms ──────────────────────────────────────────────────────────
 // groupId → Set<WebSocket>. Single-process so no pub/sub needed.
@@ -88,7 +94,7 @@ app.get('/api/schedule', (_req, res) => {
 
 app.post('/api/groups', (req, res) => {
   try {
-    const meta = createGroup({ groupName: req.body?.groupName, creatorIp: req.ip });
+    const meta = createGroup({ groupName: req.body?.groupName, creatorIp: clientIp(req) });
     if (meta.error === 'rate_limited') return res.status(429).json(meta);
     res.json(meta);
   } catch (e) {
@@ -111,7 +117,7 @@ app.patch('/api/groups/:groupId', (req, res) => {
 });
 
 app.post('/api/groups/:groupId/join', (req, res) => {
-  const result = joinGroup(req.params.groupId, req.body?.displayName, req.ip);
+  const result = joinGroup(req.params.groupId, req.body?.displayName, clientIp(req));
   if (result.error === 'rate_limited') return res.status(429).json(result);
   if (result.error) return res.status(400).json(result);
   // Broadcast updated member list to group
