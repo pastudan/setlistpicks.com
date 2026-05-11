@@ -20,12 +20,12 @@
   --ocean-deep: #2169B0;
   --pink-carnation: #F38DBB;
   --muted-olive: #95B258;
-  --jungle-green: #20A374;
+  --jungle-green: #1A8F65;
   --marker-yellow: rgba(255, 221, 87, 0.55);
   --marker-pink: rgba(243, 141, 187, 0.55);
   --font-display: 'Picnic Club', Georgia, serif;
   --font-body: 'Montserrat', system-ui, sans-serif;
-  --slot-h: 20px;
+  --slot-h: 13px;
 }
 
 * {
@@ -43,6 +43,7 @@ body {
   font-size: 16px;
   line-height: 1.4;
   min-height: 100vh;
+  overflow-x: hidden; /* no horizontal scroll anywhere on the site */
 }
 
 a {
@@ -149,6 +150,10 @@ input[type="text"]::placeholder {
   color: var(--ink);
   border: 1.5px solid rgba(36, 103, 177, 0.35);
 }
+.btn.danger {
+  background: #b42828;
+  color: #fff;
+}
 .btn.small {
   padding: 8px 14px;
   font-size: 0.78rem;
@@ -217,11 +222,7 @@ input[type="text"]::placeholder {
 
 /* ─── Toolbar ────────────────────────────────────────────────────────── */
 .toolbar {
-  position: sticky;
-  top: 0;
-  background: var(--bg);
   padding: 8px 0 14px;
-  z-index: 5;
   display: grid;
   gap: 10px;
 }
@@ -330,6 +331,10 @@ input[type="text"]::placeholder {
   padding: 5px 7px;
   overflow: visible; /* let the highlight wash bleed past the edges */
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation; /* prevents long-press text selection on iOS/Android */
+  -webkit-touch-callout: none; /* suppresses iOS callout (copy/paste menu) on long-press */
   user-select: none;
   text-align: left;
   border: none;
@@ -631,13 +636,8 @@ input[type="text"]::placeholder {
 
 /* ─── Legend ─────────────────────────────────────────────────────── */
 .legend {
-  position: sticky;
-  top: var(--toolbar-h, 0px);
-  background: var(--bg);
-  z-index: 4;
   padding: 8px 0 10px;
   border-bottom: 1px solid rgba(36, 103, 177, 0.15);
-  transition: padding-bottom 0.15s ease;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -650,9 +650,6 @@ input[type="text"]::placeholder {
   padding: 3px 9px;
   border: 1px solid rgba(36, 103, 177, 0.2);
   background: var(--paper);
-}
-.legend.floating {
-  padding-bottom: 16px;
 }
 
 /* Want + Must See pills: no border, no background — just text over the wash */
@@ -754,4 +751,72 @@ input[type="text"]::placeholder {
   border: 1px solid rgba(36, 103, 177, 0.3);
   padding: 10px 14px;
   font-size: 0.88rem;
+}
+
+/* ─── Mobile layout ──────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .app {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /*
+   * Time axis hidden by default (stage columns use full width).
+   * Slides in once you've scrolled past the day heading and need the
+   * reference — toggled by JS adding .time-active to the grid.
+   */
+  /* Time column visible by default; hides once you scroll past the day heading */
+  .schedule-grid {
+    grid-template-columns: 20px repeat(4, minmax(0, 1fr));
+    column-gap: 3px;
+    transition: grid-template-columns 0.18s ease;
+  }
+  .schedule-grid.time-hidden {
+    grid-template-columns: 0px repeat(4, minmax(0, 1fr));
+  }
+
+  .schedule-grid::after {
+    left: 20px;
+  }
+  .schedule-grid.time-hidden::after {
+    left: 0;
+  }
+
+  .time-label {
+    overflow: hidden;
+    padding-right: 3px;
+    font-size: 0.55rem;
+    opacity: 1;
+    transition: opacity 0.18s ease;
+    pointer-events: none;
+  }
+  .schedule-grid.time-hidden .time-label {
+    opacity: 0;
+  }
+
+  .stage-header {
+    font-size: 0.52rem;
+    letter-spacing: 0.04em;
+    padding: 0 2px;
+  }
+
+  .show-block {
+    padding: 3px 4px;
+    border-radius: 2px;
+    margin: 1px 1px;
+  }
+  .show-block .artist-name {
+    font-size: 0.58rem;
+  }
+  /* Hide time range inside block — too small and redundant on mobile */
+  .show-block .show-time {
+    display: none;
+  }
+
+  .day-heading .day-name {
+    font-size: 1.15rem;
+  }
+  .day-heading .day-date {
+    font-size: 1.1rem;
+  }
 }

@@ -1,5 +1,5 @@
 import React, {
-  useState, useEffect, useCallback, useRef, useMemo,
+  useState, useEffect, useCallback, useMemo,
 } from 'react';
 import { DAYS } from '../../../shared/schedule.js';
 import { api } from '../api.js';
@@ -9,6 +9,7 @@ import Legend from '../components/Legend.jsx';
 import ScheduleGrid from '../components/ScheduleGrid.jsx';
 import NamePrompt from '../components/NamePrompt.jsx';
 import ArtistPopup from '../components/ArtistPopup.jsx';
+import MemberLineupPopup from '../components/MemberLineupPopup.jsx';
 
 export default function GroupView({ groupId, member, groupMeta, freshJoin, onLeave }) {
   const [myVotes,          setMyVotes]          = useState({});
@@ -18,29 +19,13 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
   const [memberDisplayName, setMemberDisplayName] = useState(member.displayName);
   const [activeDay,        setActiveDay]        = useState(DAYS[0].id);
   const [showNamePrompt,   setShowNamePrompt]   = useState(freshJoin);
+  const [headerEditing,    setHeaderEditing]    = useState(false);
+  // True only when joining a pre-existing group (others already present)
+  const isJoiner = (groupMeta?.members ?? []).some((m) => m.key !== member.key);
   const [popup,            setPopup]            = useState(null); // { id, artist }
+  const [memberPopup,      setMemberPopup]      = useState(null); // { key, displayName }
 
-  const toolbarRef = useRef(null);
 
-  // ── Toolbar height CSS var (for sticky legend) ──────────────────────────────
-  useEffect(() => {
-    if (!toolbarRef.current) return;
-    const obs = new ResizeObserver(([entry]) => {
-      const h = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
-      document.documentElement.style.setProperty('--toolbar-h', `${h}px`);
-    });
-    obs.observe(toolbarRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  // ── Floating toolbar shadow on scroll ───────────────────────────────────────
-  useEffect(() => {
-    const onScroll = () => {
-      toolbarRef.current?.classList.toggle('floating', window.scrollY > 10);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
 
   // ── Fetch my votes ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -65,6 +50,12 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
           if (msg.type === 'votes') {
             if (msg.members)   setMutedMembers(msg.members);
             if (msg.perArtist) setPerArtistRaw(msg.perArtist);
+            if (msg.groupName) setGroupName(msg.groupName);
+            // Keep memberDisplayName in sync with server's record of our name
+            if (msg.members) {
+              const me = msg.members.find((m) => m.key === member.key);
+              if (me) setMemberDisplayName(me.displayName);
+            }
           }
         } catch { /* ignore */ }
       };
@@ -103,6 +94,17 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
     setShowNamePrompt(false);
   }
 
+  // ── Per-member vote counts (WANT + MUST SEE only) ────────────────────────────
+  const memberVoteCounts = useMemo(() => {
+    const counts = {};
+    for (const voters of Object.values(perArtistRaw)) {
+      for (const v of voters) {
+        if (v.score > 0) counts[v.key] = (counts[v.key] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [perArtistRaw]);
+
   // ── Popup votes: merge server data with local myVotes ────────────────────────
   const popupVotes = useMemo(() => {
     if (!popup) return [];
@@ -118,7 +120,7 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
   return (
     <div className="app">
       {/* Toolbar: sticky header + day tabs */}
-      <div className="toolbar" ref={toolbarRef}>
+      <div className="toolbar">
         <Header
           groupId={groupId}
           member={member}
@@ -127,13 +129,19 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
           memberDisplayName={memberDisplayName}
           setMemberDisplayName={setMemberDisplayName}
           mutedMembers={mutedMembers}
+          setMutedMembers={setMutedMembers}
           onLeave={onLeave}
+          onEditingChange={setHeaderEditing}
         />
-        <ShareCard
-          groupId={groupId}
-          memberKey={member.key}
-          mutedMembers={mutedMembers}
-        />
+        {!headerEditing && (
+          <ShareCard
+            groupId={groupId}
+            memberKey={member.key}
+            mutedMembers={mutedMembers}
+            memberVoteCounts={memberVoteCounts}
+            onMemberClick={(m) => setMemberPopup({ key: m.key, displayName: m.displayName })}
+          />
+        )}
       </div>
 
       {/* Sticky legend */}
@@ -158,11 +166,21 @@ export default function GroupView({ groupId, member, groupMeta, freshJoin, onLea
           groupId={groupId}
           member={member}
           memberDisplayName={memberDisplayName}
+          groupName={isJoiner ? groupName : null}
           onDismiss={handleNameDismiss}
         />
       )}
 
       {/* Long-press artist popup */}
+      {memberPopup && (
+        <MemberLineupPopup
+          memberKey={memberPopup.key}
+          memberDisplayName={memberPopup.displayName}
+          perArtistRaw={perArtistRaw}
+          onClose={() => setMemberPopup(null)}
+        />
+      )}
+
       {popup && (
         <ArtistPopup
           artistId={popup.id}

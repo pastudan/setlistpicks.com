@@ -30,15 +30,35 @@ function DayGrid({ day, myVotes, perArtistRaw, memberKey, memberDisplayName, gro
   const daySets = SCHEDULE.filter((s) => s.dayId === day.id);
   const dayNum = parseInt(day.date.split(' ')[1], 10);
   const dayDate = `${dayNum}${ordinalSuffix(dayNum)}`;
+  const headingRef = useRef(null);
+  const gridRef    = useRef(null);
+
+  // On mobile only: show/hide the time axis depending on whether the day
+  // heading is still visible. Once scrolled past it, the time column slides in.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    if (!mq.matches) return;
+
+    function update() {
+      if (!headingRef.current || !gridRef.current) return;
+      const { bottom } = headingRef.current.getBoundingClientRect();
+      // Hide time axis once the day heading has scrolled above the viewport
+      gridRef.current.classList.toggle('time-hidden', bottom < 10);
+    }
+
+    window.addEventListener('scroll', update, { passive: true });
+    update(); // run once on mount
+    return () => window.removeEventListener('scroll', update);
+  }, []);
 
   return (
     <div data-day={day.id}>
-      <div className="day-heading">
+      <div className="day-heading" ref={headingRef}>
         <span className="day-name">{day.name}</span>
         <span className="day-date">May {dayDate}</span>
       </div>
       <div className="schedule-wrap">
-        <div className="schedule-grid">
+        <div className="schedule-grid" ref={gridRef}>
           {/* Stage headers */}
           {STAGES_ORDER.map((stageId, i) => (
             <div key={stageId} className="stage-header" data-stage={stageId}

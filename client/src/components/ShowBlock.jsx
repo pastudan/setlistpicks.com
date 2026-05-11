@@ -43,21 +43,23 @@ function GroupVotesEl({ votes, myVote, memberKey, memberDisplayName }) {
   const allVoters = [
     ...serverOthers,
     ...(myVote > 0 ? [{ key: memberKey, displayName: memberDisplayName, score: myVote }] : []),
-  ];
-  const wants = allVoters.filter((v) => v.score === 1);
-  const musts = allVoters.filter((v) => v.score === 3);
-  const fName = (v) => v.displayName.split(' ')[0];
+  ].filter((v) => v.score === 1 || v.score === 3);
 
-  if (!wants.length && !musts.length) return null;
+  if (!allVoters.length) return null;
+
+  const showNames = allVoters.length <= 2;
+  const fName = (v) => v.displayName.split(' ')[0];
+  const icon = (v) => v.score === 3 ? '🔥' : '✓';
+  const cls  = (v) => v.score === 3 ? 'gv-fire' : 'gv-check';
+
   return (
     <div className="group-votes">
-      {wants.length === 1
-        ? <><span className="gv-check">&#x2713;</span><span className="gv-name">{fName(wants[0])}</span></>
-        : wants.map((_, i) => <span key={i} className="gv-check">&#x2713;</span>)}
-      {wants.length > 0 && musts.length > 0 && <span className="gv-gap" />}
-      {musts.length === 1
-        ? <><span className="gv-fire">🔥</span><span className="gv-name">{fName(musts[0])}</span></>
-        : musts.map((_, i) => <span key={i} className="gv-fire">🔥</span>)}
+      {allVoters.map((v, i) => (
+        <React.Fragment key={v.key ?? i}>
+          <span className={cls(v)}>{icon(v)}</span>
+          {showNames && <span className="gv-name">{fName(v)}</span>}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
@@ -132,10 +134,6 @@ const ShowBlock = React.memo(function ShowBlock({
       <span className="artist-name">{s.artist}</span>
       <span className="show-time">{fmtTimeShort(s.start)}&ndash;{fmtTimeShort(s.end)}</span>
       <WashSvg data={washDataRef.current} />
-      <svg className="mark mark-check" viewBox="0 0 28 28" overflow="visible" aria-hidden="true">
-        <use href="#mark-check" />
-      </svg>
-      <span className="mark mark-star">🔥</span>
       <GroupVotesEl
         votes={groupVotes}
         myVote={myVote}

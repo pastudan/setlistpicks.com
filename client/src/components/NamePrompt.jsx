@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../api.js';
 import { setIdentity } from '../storage.js';
 
-export default function NamePrompt({ groupId, member, memberDisplayName, onDismiss }) {
+export default function NamePrompt({ groupId, member, memberDisplayName, groupName, onDismiss }) {
   const autoName = memberDisplayName;
   const [name, setName] = useState('');
   const inputRef = useRef(null);
@@ -38,6 +38,12 @@ export default function NamePrompt({ groupId, member, memberDisplayName, onDismi
           <li>See what the group decides on</li>
         </ul>
         <div style={{ borderTop: '1px solid rgba(36,103,177,0.12)', margin: '4px 0' }} />
+        {groupName && (
+          <div style={{ fontSize: '0.88rem', color: 'var(--ink-soft)', fontWeight: 600 }}>
+            Joining{' '}
+            <span style={{ color: 'var(--ink)', fontWeight: 800 }}>{groupName}</span>
+          </div>
+        )}
         <div style={{ fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           What&rsquo;s your name?
         </div>

@@ -14,6 +14,7 @@ import {
   getAllVotes,
   updateGroupName,
   updateMemberDisplayName,
+  removeMember,
 } from './groups.js';
 import { SCHEDULE, STAGES, DAYS } from '../shared/schedule.js';
 
@@ -43,7 +44,12 @@ function leaveRoom(groupId, ws) {
 function broadcastVotes(groupId) {
   const room = rooms.get(groupId);
   if (!room || room.size === 0) return;
-  const payload = JSON.stringify({ type: 'votes', ...getAllVotes(groupId) });
+  const meta = getGroupMeta(groupId);
+  const payload = JSON.stringify({
+    type: 'votes',
+    groupName: meta?.name,
+    ...getAllVotes(groupId),
+  });
   for (const ws of room) {
     if (ws.readyState === 1 /* OPEN */) ws.send(payload);
   }
@@ -96,6 +102,7 @@ app.get('/api/groups/:groupId', (req, res) => {
 app.patch('/api/groups/:groupId', (req, res) => {
   const result = updateGroupName(req.params.groupId, req.body?.name);
   if (result.error) return res.status(400).json(result);
+  broadcastVotes(req.params.groupId);
   res.json(result);
 });
 
@@ -109,6 +116,14 @@ app.post('/api/groups/:groupId/join', (req, res) => {
 
 app.patch('/api/groups/:groupId/members/:memberKey', (req, res) => {
   const result = updateMemberDisplayName(req.params.groupId, req.params.memberKey, req.body?.displayName);
+  if (result.error) return res.status(400).json(result);
+  broadcastVotes(req.params.groupId);
+  res.json(result);
+});
+
+app.delete('/api/groups/:groupId/members/:memberKey', (req, res) => {
+  const keepVotes = req.query.keepVotes === 'true';
+  const result = removeMember(req.params.groupId, req.params.memberKey, { keepVotes });
   if (result.error) return res.status(400).json(result);
   broadcastVotes(req.params.groupId);
   res.json(result);

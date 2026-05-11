@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { computeWashData } from '../svgDefs.js';
 
 function WashSvg({ setId, rotation, filterRef, p1, p2, returnOpacity }) {
@@ -47,20 +47,9 @@ function MarkCheck() {
   );
 }
 
-export default function Legend({ toolbarRef }) {
-  const legendRef = useRef(null);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const floating = window.scrollY > 10;
-      legendRef.current?.classList.toggle('floating', floating);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
+export default function Legend() {
   return (
-    <div className="legend" ref={legendRef}>
+    <div className="legend">
       <span style={{ marginRight: 4 }}>Tap to cycle:</span>
       <span className="pill">Skip</span>
 
