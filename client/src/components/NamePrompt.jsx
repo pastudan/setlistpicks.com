@@ -12,7 +12,8 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const trimmed = name.trim();
-  const existingMatch = trimmed ? mutedMembers.find(m => m.key === normalize(trimmed)) : null;
+  // Match on normalized display name, not key — keys are now opaque nanoids
+  const existingMatch = trimmed ? mutedMembers.find(m => normalize(m.displayName) === normalize(trimmed)) : null;
   const isSelf = existingMatch?.key === member.key;
   const isRecovery = existingMatch && !isSelf;
 
@@ -20,7 +21,7 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
     const t = chosenName?.trim();
     if (!t || t === autoName) { onDismiss(null); return; }
 
-    if (mutedMembers.find(m => m.key === normalize(t) && m.key !== member.key)) {
+    if (mutedMembers.find(m => normalize(m.displayName) === normalize(t) && m.key !== member.key)) {
       // Recover existing session. The member.key is about to change so we can't
       // just update a display label — we need a clean re-mount with the correct key.
       // Reload the page: localStorage is already set to the recovered identity,

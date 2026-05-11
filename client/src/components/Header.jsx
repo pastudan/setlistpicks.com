@@ -204,7 +204,7 @@ export default function Header({
             onKeyDown={(e) => e.key === 'Enter' && save()} />
           {(() => {
             const editMatch = mutedMembers.find(m =>
-              m.key === nameInput.trim().toLowerCase() && m.key !== member.key
+              m.displayName.trim().toLowerCase() === nameInput.trim().toLowerCase() && m.key !== member.key
             );
             return editMatch ? (
               <div style={{

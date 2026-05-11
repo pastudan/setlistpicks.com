@@ -2,7 +2,8 @@ import { customAlphabet } from 'nanoid';
 import { db } from './db.js';
 import { SCHEDULE_BY_ID } from '../shared/schedule.js';
 
-const newGroupId = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 10);
+const newGroupId   = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 10);
+const newMemberId  = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 10);
 
 const MAX_DISPLAY_NAME_LEN = 50;   // per-member name
 const MAX_GROUP_NAME_LEN   = 100;  // long enough for a funny name, not a novel
@@ -31,6 +32,7 @@ const stmts = {
   updateGroupName:  db.prepare('UPDATE groups SET name = ?, last_active = ? WHERE id = ?'),
 
   getMember:        db.prepare('SELECT * FROM members WHERE group_id = ? AND member_key = ?'),
+  getMemberByName:  db.prepare('SELECT * FROM members WHERE group_id = ? AND LOWER(TRIM(display_name)) = LOWER(TRIM(?))'),
   countMembersByIp: db.prepare('SELECT COUNT(*) AS cnt FROM members WHERE creator_ip = ?'),
   insertMember:     db.prepare('INSERT INTO members (group_id, member_key, display_name, joined_at, last_seen, creator_ip) VALUES (?, ?, ?, ?, ?, ?)'),
   touchMember:  db.prepare('UPDATE members SET last_seen = ? WHERE group_id = ? AND member_key = ?'),
@@ -74,14 +76,16 @@ export function joinGroup(groupId, displayName, creatorIp) {
 
   const display = cleanDisplayName(displayName);
   if (!display) return { error: 'invalid_name' };
-  const key = normalizeName(display);
-  if (!key) return { error: 'invalid_name' };
 
   const now = Date.now();
-  const existing = stmts.getMember.get(groupId, key);
+
+  // Dedup by normalized display name — this is how session recovery works.
+  // The member_key is now an opaque nanoid; updating display_name later never
+  // breaks the mapping between identity and votes.
+  const existing = stmts.getMemberByName.get(groupId, display);
   if (existing) {
-    stmts.touchMember.run(now, groupId, key);
-    return { member: { key, displayName: existing.display_name } };
+    stmts.touchMember.run(now, groupId, existing.member_key);
+    return { member: { key: existing.member_key, displayName: existing.display_name } };
   }
 
   if (creatorIp) {
@@ -89,6 +93,7 @@ export function joinGroup(groupId, displayName, creatorIp) {
     if (cnt >= MAX_MEMBERS_PER_IP) return { error: 'rate_limited' };
   }
 
+  const key = newMemberId();
   stmts.insertMember.run(groupId, key, display, now, now, creatorIp ?? null);
   return { member: { key, displayName: display } };
 }
