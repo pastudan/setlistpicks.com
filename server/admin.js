@@ -74,6 +74,26 @@ const stmts = {
     ORDER BY m.joined_at DESC
   `),
 
+  groupById: db.prepare(`
+    SELECT g.id, g.name, g.creator_ip, g.created_at, g.last_active,
+           COUNT(m.member_key) AS member_count
+    FROM groups g
+    LEFT JOIN members m ON m.group_id = g.id
+    WHERE g.id = ?
+    GROUP BY g.id
+  `),
+
+  membersByGroup: db.prepare(`
+    SELECT
+      m.member_key, m.display_name, m.joined_at, m.last_seen, m.creator_ip,
+      (SELECT COUNT(*) FROM groups  WHERE creator_ip = m.creator_ip) AS ip_groups,
+      (SELECT COUNT(*) FROM members WHERE creator_ip = m.creator_ip) AS ip_members,
+      (SELECT COUNT(*) FROM votes WHERE group_id = m.group_id AND member_key = m.member_key) AS vote_count
+    FROM members m
+    WHERE m.group_id = ?
+    ORDER BY m.joined_at
+  `),
+
   deleteVotesByGroup:   db.prepare('DELETE FROM votes   WHERE group_id = ?'),
   deleteMembersByGroup: db.prepare('DELETE FROM members WHERE group_id = ?'),
   deleteGroup:          db.prepare('DELETE FROM groups  WHERE id = ?'),
@@ -280,7 +300,7 @@ router.get('/:secret', requireSecret, (req, res) => {
             ${groups.length
               ? groups.map(g => `
                 <tr>
-                  <td class="mono">${esc(g.id)}</td>
+                  <td class="mono"><a href="/admin/${esc(secret)}/group/${esc(g.id)}">${esc(g.id)}</a></td>
                   <td>${g.name ? esc(g.name) : '<span class="muted">(unnamed)</span>'}</td>
                   <td class="mono">${g.creator_ip
                     ? `<a href="/admin/${esc(secret)}/ip/${esc(g.creator_ip)}">${esc(g.creator_ip)}</a>`
@@ -332,7 +352,7 @@ router.get('/:secret/ip/:ip', requireSecret, async (req, res) => {
             ${groups.length
               ? groups.map(g => `
                 <tr>
-                  <td class="mono">${esc(g.id)}</td>
+                  <td class="mono"><a href="/admin/${esc(secret)}/group/${esc(g.id)}">${esc(g.id)}</a></td>
                   <td>${g.name ? esc(g.name) : '<span class="muted">(unnamed)</span>'}</td>
                   <td class="mono muted">${fmt(g.created_at)}</td>
                   <td class="mono muted">${fmt(g.last_active)}</td>
@@ -372,6 +392,70 @@ router.get('/:secret/ip/:ip', requireSecret, async (req, res) => {
     </section>`;
 
   res.send(page(secret, `IP ${ip}`, breadcrumb, body));
+});
+
+// Group detail
+router.get('/:secret/group/:groupId', requireSecret, (req, res) => {
+  const { secret, groupId } = req.params;
+  const group = stmts.groupById.get(groupId);
+  if (!group) return res.status(404).send(page(secret, 'Not Found', '', '<p style="color:#94a3b8">Group not found.</p>'));
+
+  const members = stmts.membersByGroup.all(groupId);
+  const backUrl = `/admin/${secret}`;
+
+  const breadcrumb = `
+    <span class="sep">/</span>
+    <a href="${esc(backUrl)}">Dashboard</a>
+    <span class="sep">/</span>
+    <span class="mono">${esc(groupId)}</span>`;
+
+  const ipCell = (m) => {
+    if (!m.creator_ip) return '<span class="muted">—</span>';
+    const counts = `<span class="muted" style="font-size:11px;margin-left:5px">(${m.ip_groups}g / ${m.ip_members}m)</span>`;
+    return `<a href="/admin/${esc(secret)}/ip/${esc(m.creator_ip)}" class="mono">${esc(m.creator_ip)}</a>${counts}`;
+  };
+
+  const body = `
+    <a class="back" href="${esc(backUrl)}">← Dashboard</a>
+    <div class="page-title">${group.name ? esc(group.name) : '<span class="muted">(unnamed)</span>'} <span class="mono" style="font-size:13px;color:#64748b">${esc(groupId)}</span></div>
+
+    <dl class="info-grid" style="margin-bottom:24px">
+      <div><dt>Created</dt><dd>${fmt(group.created_at)}</dd></div>
+      <div><dt>Last Active</dt><dd>${fmt(group.last_active)}</dd></div>
+      <div><dt>Members</dt><dd>${group.member_count}</dd></div>
+      ${group.creator_ip ? `<div><dt>Creator IP</dt><dd><a href="/admin/${esc(secret)}/ip/${esc(group.creator_ip)}">${esc(group.creator_ip)}</a></dd></div>` : ''}
+    </dl>
+
+    <section>
+      <h2>Members (${members.length})</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Picks</th><th>Joined</th><th>Last Seen</th><th>IP</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${members.length
+              ? members.map(m => `
+                <tr>
+                  <td style="font-weight:500">${esc(m.display_name)}</td>
+                  <td>${m.vote_count > 0 ? m.vote_count : '<span class="muted">—</span>'}</td>
+                  <td class="mono muted">${fmt(m.joined_at)}</td>
+                  <td class="mono muted">${fmt(m.last_seen)}</td>
+                  <td>${ipCell(m)}</td>
+                  <td>${deleteMemberForm(secret, groupId, m.member_key, req.originalUrl)}</td>
+                </tr>`).join('')
+              : `<tr><td colspan="6" class="empty">No members</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section style="margin-top:8px">
+      ${deleteGroupForm(secret, groupId, backUrl)}
+      <span style="margin-left:8px;font-size:12px;color:#64748b">Delete entire group</span>
+    </section>`;
+
+  res.send(page(secret, `Group ${groupId}`, breadcrumb, body));
 });
 
 // Delete group
