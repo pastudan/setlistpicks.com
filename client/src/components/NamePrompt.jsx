@@ -21,10 +21,13 @@ export default function NamePrompt({ groupId, member, memberDisplayName, groupNa
     if (!t || t === autoName) { onDismiss(null); return; }
 
     if (mutedMembers.find(m => m.key === normalize(t) && m.key !== member.key)) {
-      // Recover existing session — api.join returns the real member key + preserved votes
+      // Recover existing session — api.join returns the real member key + preserved votes.
+      // Also remove the auto-generated placeholder that was created for this device.
       try {
         const { member: recovered } = await api.join(groupId, t);
         setIdentity(groupId, recovered);
+        // Best-effort removal of the placeholder; don't block on failure
+        api.removeMember(groupId, member.key, { keepVotes: false }).catch(() => {});
         onDismiss(recovered.displayName);
       } catch { onDismiss(autoName); }
     } else {
