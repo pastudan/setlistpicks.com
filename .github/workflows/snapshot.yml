@@ -14,6 +14,6 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Create volume snapshot
-        run: flyctl volumes snapshots create ${{ vars.FLY_VOLUME_ID }} --app bottlerock-picks
+        run: flyctl volumes snapshots create vol_4y85xp3p3odeyq1r --app bottlerock-picks
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
