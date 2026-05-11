@@ -815,7 +815,7 @@ export function groupView({ groupId, member, groupMeta, freshJoin = false, onLea
 
     nameInput = h('input', {
       type: 'text',
-      placeholder: autoName,
+      placeholder: 'Name',
       maxlength: 64,
       autofocus: true,
       style: { fontSize: '1rem' },
@@ -842,10 +842,15 @@ export function groupView({ groupId, member, groupMeta, freshJoin = false, onLea
     ]);
 
     const card = h('div.name-prompt-card', [
-      h('div', { style: { fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '1.3rem', color: 'var(--ink-soft)', letterSpacing: '0.01em', lineHeight: 1.2 } }, 'Plan the BottleRock lineup with your crew \u2014 mark your must-sees, see where everyone lands.'),
+      h('div', { style: { fontWeight: 800, fontSize: '1.3rem', textTransform: 'uppercase', letterSpacing: '0.06em' } }, 'Plan BottleRock'),
+      h('ul', { style: { margin: '4px 0 0', paddingLeft: '18px', display: 'grid', gap: '4px', fontSize: '0.88rem', color: 'var(--ink-soft)' } }, [
+        h('li', 'Save the shows you want to see'),
+        h('li', 'Share a link with your crew'),
+        h('li', 'See what the group decides on'),
+      ]),
       h('div', { style: { borderTop: '1px solid rgba(36,103,177,0.12)', margin: '4px 0' } }),
-      h('div', { style: { fontWeight: 800, fontSize: '1.1rem', textTransform: 'uppercase', letterSpacing: '0.05em' } }, "What\u2019s your name?"),
-      h('p', { style: { margin: 0, fontSize: '0.88rem', color: 'var(--ink-soft)' } }, 'Your crew will see this next to your picks.'),
+      h('div', { style: { fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' } }, "What\u2019s your name?"),
+      h('p', { style: { margin: 0, fontSize: '0.88rem', color: 'var(--ink-soft)' } }, 'Your group will see this next to your picks.'),
       nameInput,
       goBtn,
       h('div', { style: { textAlign: 'center' } }, skipLink),
