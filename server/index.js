@@ -174,7 +174,7 @@ if (fs.existsSync(distDir)) {
   const groupHtml = indexHtml
     .replace(
       /<title>[^<]*<\/title>/,
-      '<title>BottleRock Setlist Picker</title>',
+      '<title>Outside Lands Setlist Picker</title>',
     )
     .replace(
       '</head>',

@@ -46,9 +46,10 @@ export function renderLineupHtml() {
   const artistCount = SCHEDULE.length;
 
   return `<div id="seo-prerender" aria-hidden="true" style="display:none">
-<h1>BottleRock 2026 Lineup &amp; Schedule</h1>
-<p>BottleRock Napa Valley 2026 runs May 22&ndash;24 at the Napa Valley Expo. ${artistCount} sets across 4 stages &mdash; Prudential, T-Mobile, HelloFresh, and NorthBay Health. Headliners include Foo Fighters, Lorde, Backstreet Boys, and Lil Wayne. Use this tool to pick your must-see shows and plan with your crew.</p>
-<p><a href="https://www.bottlerocknapavalley.com/schedule/" rel="noopener noreferrer">Official BottleRock schedule &rarr;</a></p>
+<h1>Outside Lands 2026 Lineup &amp; Schedule</h1>
+<p>Outside Lands 2026 runs August 7&ndash;9 at Golden Gate Park in San Francisco. ${artistCount} sets across 4 stages &mdash; Lands End, Twin Peaks, Sutro, and Panhandle. Headliners include Charli xcx, The Strokes, R&Uuml;F&Uuml;S DU SOL, Baby Keem, Turnstile, The xx, and Death Cab for Cutie. Use this tool to pick your must-see shows and plan with your crew.</p>
+<p><em>Note: set times are estimated &mdash; official times will be published in the Outside Lands app closer to the festival.</em></p>
+<p><a href="https://www.sfoutsidelands.com/lineup" rel="noopener noreferrer">Official Outside Lands lineup &rarr;</a></p>
 ${dayGroups}
 </div>`;
 }
@@ -63,13 +64,13 @@ export function renderJsonLd() {
       endDate: toIso(s.end, day.date),
       location: {
         '@type': 'Place',
-        name: `${STAGE_NAMES[s.stageId]} — Napa Valley Expo`,
+        name: `${STAGE_NAMES[s.stageId]} — Golden Gate Park`,
         address: {
           '@type': 'PostalAddress',
-          streetAddress: '575 Third St',
-          addressLocality: 'Napa',
+          streetAddress: 'Golden Gate Park',
+          addressLocality: 'San Francisco',
           addressRegion: 'CA',
-          postalCode: '94559',
+          postalCode: '94122',
           addressCountry: 'US',
         },
       },
@@ -80,18 +81,18 @@ export function renderJsonLd() {
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'MusicFestival',
-    name: 'BottleRock Napa Valley 2026',
-    startDate: '2026-05-22T12:00:00-07:00',
-    endDate: '2026-05-24T22:00:00-07:00',
+    name: 'Outside Lands 2026',
+    startDate: '2026-08-07T12:00:00-07:00',
+    endDate: '2026-08-09T22:00:00-07:00',
     location: {
       '@type': 'Place',
-      name: 'Napa Valley Expo',
+      name: 'Golden Gate Park',
       address: {
         '@type': 'PostalAddress',
-        streetAddress: '575 Third St',
-        addressLocality: 'Napa',
+        streetAddress: 'Golden Gate Park',
+        addressLocality: 'San Francisco',
         addressRegion: 'CA',
-        postalCode: '94559',
+        postalCode: '94122',
         addressCountry: 'US',
       },
     },

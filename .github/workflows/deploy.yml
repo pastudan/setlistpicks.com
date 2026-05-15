@@ -2,7 +2,7 @@ name: Deploy to Fly.io
 
 on:
   push:
-    branches: [main]
+    branches: [outside-lands-2026]
 
 jobs:
   deploy:

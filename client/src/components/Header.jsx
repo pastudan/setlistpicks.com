@@ -242,7 +242,7 @@ export default function Header({
 
   const brandRow = (
     <div className="brand">
-      <div className="brand-logo">BottleRock</div>
+      <div className="brand-logo">Outside Lands</div>
       <div className="brand-info" style={{ flex: 1, minWidth: 0 }}>
         <div className="brand-title">{displayGroupName}</div>
         <div className="brand-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

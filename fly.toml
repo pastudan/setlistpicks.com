@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for bottlerock-setlist-preferences on 2026-05-11T02:28:46-07:00
+# fly.toml app configuration file for Outside Lands 2026
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'bottlerock-picks'
+app = 'outsidelands-picks'
 org = 'bottlerock'
 primary_region = 'sjc'
 
@@ -11,12 +11,12 @@ primary_region = 'sjc'
   dockerfile = 'Dockerfile'
 
 [env]
-  DB_PATH = '/data/bottlerock.db'
+  DB_PATH = '/data/outsidelands.db'
   NODE_ENV = 'production'
   PORT = '8080'
 
 [[mounts]]
-  source = 'bottlerock_data'
+  source = 'outsidelands_data'
   destination = '/data'
 
 [http_service]
